@@ -40,6 +40,10 @@ api.get('/api/health', async (req, res) => {
       ephemeral: isEphemeral(),
       artists: count,
     },
+    // Without a shared signing key each instance signs sessions with its own, and
+    // the dashboard logs people out at random. Report whether one is configured —
+    // never its value.
+    sessions: { signing_key_configured: (process.env.INKFLOW_SECRET ?? '').length >= 16 },
     pending_messages: pending.count,
     time: nowIso(),
   });

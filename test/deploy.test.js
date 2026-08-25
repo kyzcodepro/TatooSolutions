@@ -92,6 +92,9 @@ test('/api/health reports how the deployment is wired', async () => {
   assert.equal(body.database.backend, 'sqlite');
   assert.equal(body.database.location, process.env.INKFLOW_DB);
   assert.ok(body.database.artists >= 1, 'the demo studio is present');
+  assert.equal(typeof body.sessions.signing_key_configured, 'boolean');
+  assert.ok(!JSON.stringify(body).includes(process.env.INKFLOW_SECRET ?? 'nothing-set'),
+    'health never echoes the signing key');
 });
 
 test('a broken application reports why instead of crashing the function', async () => {
