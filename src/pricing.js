@@ -19,15 +19,30 @@ const TOUGH_PLACEMENTS = [
 export const MAX_SESSION_HOURS = 6;
 const COVER_UP_MULTIPLIER = 1.4;
 
-function baseHours(sizeCm) {
+// Hours against the longest dimension, as a continuous curve through observed
+// anchor points. Bands were tempting and wrong: at a boundary one centimetre
+// moved the price by half, and inside a band four centimetres moved nothing —
+// a client watching that happen stops believing the number.
+const SIZE_ANCHORS = [
+  [2, 0.5], [5, 0.75], [10, 1.5], [15, 2.5], [20, 4], [30, 6], [40, 9],
+];
+const HOURS_PER_CM_BEYOND = 0.25;
+
+export function baseHours(sizeCm) {
   const size = Math.max(1, Number(sizeCm) || 1);
-  if (size <= 5) return 0.75;
-  if (size <= 10) return 1.5;
-  if (size <= 15) return 2.5;
-  if (size <= 20) return 4;
-  if (size <= 30) return 6;
-  if (size <= 40) return 9;
-  return 12 + (size - 40) * 0.25;
+  const [firstCm, firstHours] = SIZE_ANCHORS[0];
+  if (size <= firstCm) return (size / firstCm) * firstHours;
+
+  for (let i = 1; i < SIZE_ANCHORS.length; i++) {
+    const [cm, hours] = SIZE_ANCHORS[i];
+    if (size <= cm) {
+      const [prevCm, prevHours] = SIZE_ANCHORS[i - 1];
+      const ratio = (size - prevCm) / (cm - prevCm);
+      return prevHours + ratio * (hours - prevHours);
+    }
+  }
+  const [lastCm, lastHours] = SIZE_ANCHORS[SIZE_ANCHORS.length - 1];
+  return lastHours + (size - lastCm) * HOURS_PER_CM_BEYOND;
 }
 
 export function placementMultiplier(placement = '') {
@@ -43,6 +58,15 @@ const roundQuarter = (h) => Math.max(0.5, Math.round(h * 4) / 4);
 const roundTo5 = (cents) => Math.round(cents / 500) * 500;
 
 /**
+ * How wide the bracket should be. A one-hour liner is predictable; a fifteen-hour
+ * back piece is not, and pretending otherwise is the dishonest part — a narrow
+ * range on a long project is a promise the artist cannot keep.
+ */
+export function spreadFor(hours) {
+  return Math.min(0.3, Math.max(0.12, 0.1 + hours * 0.014));
+}
+
+/**
  * @param {object} brief   size_cm, detail_level, color_mode, placement, cover_up, budget_cents
  * @param {object} artist  hourly_rate_cents, minimum_cents, deposit_percent
  */
@@ -51,18 +75,21 @@ export function estimate(brief, artist) {
   const minimum = Math.max(0, Number(artist.minimum_cents) || 0);
   const depositPercent = Math.min(100, Math.max(0, Number(artist.deposit_percent) ?? 30));
 
-  const hours = roundQuarter(
-    baseHours(brief.size_cm)
-      * (DETAIL_MULTIPLIER[brief.detail_level] ?? 1)
-      * (COLOR_MULTIPLIER[brief.color_mode] ?? 1)
-      * placementMultiplier(brief.placement)
-      * (brief.cover_up ? COVER_UP_MULTIPLIER : 1),
-  );
+  // Quarter-hours are how a duration is spoken, not how a price should be
+  // computed: on a one-hour piece a rounded quarter moves the total by a third.
+  // The money follows the exact hours; only the displayed duration is rounded.
+  const exactHours = baseHours(brief.size_cm)
+    * (DETAIL_MULTIPLIER[brief.detail_level] ?? 1)
+    * (COLOR_MULTIPLIER[brief.color_mode] ?? 1)
+    * placementMultiplier(brief.placement)
+    * (brief.cover_up ? COVER_UP_MULTIPLIER : 1);
+  const hours = roundQuarter(exactHours);
 
-  const midpoint = Math.max(minimum, Math.round(hours * hourlyRate));
-  const low = Math.max(minimum, roundTo5(midpoint * 0.9));
-  const high = Math.max(low, roundTo5(midpoint * 1.15));
-  const sessions = Math.max(1, Math.ceil(hours / MAX_SESSION_HOURS));
+  const midpoint = Math.max(minimum, Math.round(exactHours * hourlyRate));
+  const spread = spreadFor(exactHours);
+  const low = Math.max(minimum, roundTo5(midpoint * (1 - spread)));
+  const high = Math.max(low, roundTo5(midpoint * (1 + spread)));
+  const sessions = Math.max(1, Math.ceil(exactHours / MAX_SESSION_HOURS));
   const deposit = suggestDeposit(midpoint, depositPercent);
 
   const budget = Number(brief.budget_cents) || 0;
@@ -71,6 +98,7 @@ export function estimate(brief, artist) {
   return {
     hours,
     sessions,
+    spread_percent: Math.round(spread * 100),
     low_cents: low,
     high_cents: high,
     midpoint_cents: midpoint,

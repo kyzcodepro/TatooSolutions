@@ -93,7 +93,8 @@ async function runEstimate() {
     const { estimate } = await api('POST', `/api/public/artists/${encodeURIComponent(slug)}/estimate`, payload);
     el('estimate-range').textContent = `${money(estimate.low_cents, currency)} – ${money(estimate.high_cents, currency)}`;
     el('estimate-detail').textContent =
-      `≈ ${estimate.hours} h de travail · ${estimate.sessions} séance${estimate.sessions > 1 ? 's' : ''}`;
+      `≈ ${estimate.hours} h de travail · ${estimate.sessions} séance${estimate.sessions > 1 ? 's' : ''}`
+      + (estimate.spread_percent >= 18 ? ' · fourchette large sur un projet de cette taille' : '');
     el('estimate-deposit').textContent = money(estimate.deposit_cents, currency);
     pulseEstimate();
 

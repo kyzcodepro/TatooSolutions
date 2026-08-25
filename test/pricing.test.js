@@ -56,3 +56,50 @@ test('deposit is a rounded percentage capped at the price', () => {
   assert.equal(suggestDeposit(30000, 200), 30000);
   assert.equal(suggestDeposit(30000, -5), 0);
 });
+
+test('the price never jumps at a size boundary', () => {
+  // The bug this pins: bands made 10 -> 11 cm cost 67 % more, and 6 -> 10 cm cost
+  // nothing at all. A client moving the slider stops trusting a number that does
+  // either of those.
+  let worst = { jump: 0, at: 0 };
+  let previous = null;
+  for (let size = 3; size <= 80; size++) {
+    const { midpoint_cents } = estimate({ size_cm: size, detail_level: 'medium', color_mode: 'blackwork' }, artist);
+    if (previous) {
+      assert.ok(midpoint_cents >= previous, `price fell from ${size - 1} to ${size} cm`);
+      const jump = (midpoint_cents - previous) / previous;
+      if (jump > worst.jump) worst = { jump, at: size };
+    }
+    previous = midpoint_cents;
+  }
+  assert.ok(worst.jump <= 0.25, `a single centimetre moved the price by ${Math.round(worst.jump * 100)} % at ${worst.at} cm`);
+});
+
+test('every centimetre changes the price — no flat stretches', () => {
+  // Above the shop minimum, where the floor no longer masks the curve.
+  let previous = estimate({ size_cm: 12, detail_level: 'medium', color_mode: 'blackwork' }, artist).midpoint_cents;
+  for (let size = 13; size <= 40; size++) {
+    const { midpoint_cents } = estimate({ size_cm: size, detail_level: 'medium', color_mode: 'blackwork' }, artist);
+    assert.ok(midpoint_cents > previous, `${size - 1} and ${size} cm cost the same`);
+    previous = midpoint_cents;
+  }
+});
+
+test('the bracket widens with the length of the work', () => {
+  const small = estimate({ size_cm: 6, detail_level: 'simple', color_mode: 'linework' }, artist);
+  const large = estimate({ size_cm: 45, detail_level: 'high', color_mode: 'color' }, artist);
+  // A one-hour liner is predictable; a twenty-hour back piece is not, and a narrow
+  // range on it would be a promise the artist cannot keep.
+  assert.ok(large.spread_percent > small.spread_percent);
+  assert.ok(small.spread_percent >= 12 && large.spread_percent <= 30);
+
+  const width = (e) => (e.high_cents - e.low_cents) / e.midpoint_cents;
+  assert.ok(width(large) > width(small));
+});
+
+test('the displayed duration is rounded but the price is not quantised by it', () => {
+  const a = estimate({ size_cm: 17, detail_level: 'medium', color_mode: 'blackwork' }, artist);
+  const b = estimate({ size_cm: 18, detail_level: 'medium', color_mode: 'blackwork' }, artist);
+  assert.equal(a.hours % 0.25, 0, 'hours are spoken in quarters');
+  assert.notEqual(a.midpoint_cents, b.midpoint_cents, 'but a centimetre still moves the money');
+});
