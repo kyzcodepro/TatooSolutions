@@ -26,8 +26,17 @@ function render() {
   el('nav-studio').textContent = artist.city ? `${artist.studio_name} · ${artist.city}` : artist.studio_name;
 
   const reached = STEP_INDEX[request.status] ?? 1;
-  el('steps').innerHTML = ['Demande reçue', 'Devis', 'Date bloquée']
-    .map((name, i) => `<div class="step ${i < reached ? 'done' : ''}"><div class="bar"></div><div class="name">${esc(name)}</div></div>`)
+  const stepNames = ['Demande reçue', 'Devis de l\'artiste', 'Acompte et date bloquée'];
+  el('steps').innerHTML = stepNames
+    .map((name, i) => {
+      // Only the current step is "on": on a phone it is the one that keeps its label.
+      const state = i === reached - 1 ? 'on' : (i < reached ? 'done' : '');
+      const step = `<div class="step ${state}"><span class="num">${i + 1}</span><span class="lbl">${esc(name)}</span></div>`;
+      // The connector fills only up to the step actually reached.
+      return i < stepNames.length - 1
+        ? `${step}<div class="step-link ${i < reached - 1 ? 'fill' : ''}"></div>`
+        : step;
+    })
     .join('');
 
   const panel = el('panel');
@@ -82,7 +91,7 @@ function render() {
         <div class="price-line"><span class="muted">Prix du tatouage</span><span class="price-total">${money(request.quote_price_cents, currency)}</span></div>
         <div class="price-line"><span class="muted">Acompte à verser maintenant</span><b style="color:var(--accent)">${money(request.deposit_cents, currency)}</b></div>
         <div class="price-line"><span class="muted">Reste à régler le jour J</span><b>${money(remaining, currency)}</b></div>
-        <button class="btn btn-block" id="accept" style="margin-top:1.2rem" ${request.proposed_start ? '' : 'disabled'}>
+        <button class="btn btn-block tap" id="accept" style="margin-top:1.3rem;min-height:52px;font-size:1rem" ${request.proposed_start ? '' : 'disabled'}>
           Accepter et verser l'acompte
         </button>
         <p class="hint center" style="margin-top:0.6rem">
@@ -90,6 +99,12 @@ function render() {
           Au-delà, l'acompte reste acquis au studio.
         </p>
         ${request.quote_expires_at ? `<p class="hint center">Devis valable jusqu'au ${esc(dateTime(request.quote_expires_at))}.</p>` : ''}
+        <hr class="divider">
+        <div class="assur" style="flex-direction:column;gap:0.7rem">
+          <div><svg width="17" height="17" viewBox="0 0 19 19" aria-hidden="true"><path d="M4 10l4 4 7-8"></path></svg>Acompte encaissé via un paiement sécurisé</div>
+          <div><svg width="17" height="17" viewBox="0 0 19 19" aria-hidden="true"><path d="M4 10l4 4 7-8"></path></svg>Report sans frais jusqu'au délai du studio</div>
+          <div><svg width="17" height="17" viewBox="0 0 19 19" aria-hidden="true"><path d="M4 10l4 4 7-8"></path></svg>Le reste se règle sur place, le jour J</div>
+        </div>
       </div>
       ${brief}`;
     el('accept').addEventListener('click', accept);

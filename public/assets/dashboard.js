@@ -257,10 +257,10 @@ async function loadAppointments() {
   const past = appointments.filter((a) => a.status !== 'scheduled');
 
   el('appointments').innerHTML = upcoming.length
-    ? upcoming.map(appointmentCard).join('')
+    ? upcoming.map((appointment, index) => appointmentCard(appointment, index === 0)).join('')
     : '<div class="empty">Aucune séance programmée.</div>';
   el('appointments-past').innerHTML = past.length
-    ? past.map(appointmentCard).join('')
+    ? past.map((appointment) => appointmentCard(appointment)).join('')
     : '<div class="empty">L\'historique se remplira après vos premières séances.</div>';
 
   document.querySelectorAll('[data-appt-action]').forEach((button) => {
@@ -268,11 +268,11 @@ async function loadAppointments() {
   });
 }
 
-function appointmentCard(appointment) {
+function appointmentCard(appointment, isNext = false) {
   const currency = artist.currency;
   const hours = (new Date(appointment.ends_at) - new Date(appointment.starts_at)) / 3600000;
   return `
-    <article class="item">
+    <article class="item${isNext ? ' item-next' : ''}">
       <div class="row-between">
         <div>
           <div class="item-title">${esc(dateTime(appointment.starts_at))} · ${esc(appointment.client_name)}</div>

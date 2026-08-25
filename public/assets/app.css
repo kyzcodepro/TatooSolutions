@@ -337,7 +337,9 @@ fieldset { border: 0; padding: 0; margin: 0; }
   width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
   border: 1px solid var(--line-strong); color: var(--faint); font-size: 0.82rem; flex: 0 0 auto;
 }
-.step.on .num { border-color: var(--accent); background: var(--accent); color: #180a05; }
+.step.on .num, .step.done .num { border-color: var(--accent); background: var(--accent); color: #180a05; }
+.step.done .num { opacity: 0.55; }
+.step.done .lbl { color: var(--muted); }
 .step .lbl { font-size: 0.88rem; color: var(--faint); white-space: nowrap; }
 .step.on .lbl { color: var(--text); }
 .step-link { flex: 1; height: 1px; background: var(--line); margin: 0 1rem; position: relative; min-width: 24px; }
@@ -385,6 +387,39 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .stat:nth-child(2) { animation-delay: 0.07s; } .stat:nth-child(3) { animation-delay: 0.14s; }
 .stat:nth-child(4) { animation-delay: 0.21s; } .stat:nth-child(5) { animation-delay: 0.28s; }
 .stat:nth-child(6) { animation-delay: 0.35s; }
+
+/* Le reste de la vitrine : pas d'entrée animée sous la ligne de flottaison —
+   elle se jouerait sans témoin. Un liseré, une élévation au survol, rien de plus. */
+.feature, .card-lift { position: relative; transition: border-color 0.15s ease, transform 0.15s ease; }
+.feature::before, .card-lift::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, var(--accent), transparent 62%); opacity: 0.45;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.feature:hover, .card-lift:hover { border-color: var(--line-strong); transform: translateY(-2px); }
+
+/* Le plan mis en avant se signale par sa bordure, pas par une couleur criarde. */
+.plan-featured { border-color: var(--accent); }
+.plan-featured::before { opacity: 1; background: linear-gradient(90deg, var(--accent), transparent 80%); }
+/* Les boutons d'une grille de tarifs s'alignent, quelle que soit la longueur du texte. */
+.plan { display: flex; flex-direction: column; }
+.plan .btn { margin-top: auto; }
+.plan-price { font-size: 2.1rem; font-weight: 680; letter-spacing: -0.035em; margin: 0.5rem 0 0.6rem; }
+.plan-price span { font-size: 1rem; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+
+/* Écran de connexion : même atmosphère que la vitrine, sans la débauche. */
+.auth-shell { position: relative; overflow: hidden; min-height: calc(100vh - 62px); }
+.auth-shell > .wrap-narrow { position: relative; z-index: 1; }
+
+/* Séance suivante : la seule ligne de l'agenda qui mérite d'attirer l'œil. */
+.item.item-next { border-color: var(--line-strong); }
+.item.item-next::before {
+  content: ""; position: absolute; left: -1px; top: 1rem; bottom: 1rem; width: 2px;
+  border-radius: 2px; background: var(--ok);
+}
+.item.item-next { position: relative; }
+
+.outbox-item .outbox-body { line-height: 1.6; }
 
 /* Format téléphone : rien ne doit déborder à droite. */
 .nav-sections { display: flex; gap: 0.35rem; align-items: center; }

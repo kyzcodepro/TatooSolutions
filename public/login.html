@@ -15,24 +15,27 @@
   </div>
 </header>
 
-<main class="wrap-narrow" style="padding:3rem 0">
+<main class="auth-shell" style="padding:3rem 0">
+  <div class="bleed bleed-a"></div>
+  <div class="grain"></div>
+  <div class="wrap-narrow">
   <div class="tabs" role="tablist" style="margin-bottom:1.5rem">
     <button class="tab" id="tab-login" role="tab" aria-selected="true" aria-controls="panel-login">Connexion</button>
     <button class="tab" id="tab-signup" role="tab" aria-selected="false" aria-controls="panel-signup">Créer mon studio</button>
   </div>
 
   <form class="card card-pad-lg" id="panel-login" role="tabpanel" aria-labelledby="tab-login">
-    <h2>Bon retour</h2>
+    <h2 class="display">Bon retour</h2>
     <p class="muted">Votre boîte de demandes vous attend.</p>
     <div class="field"><label for="login-email">Email</label>
       <input id="login-email" name="email" type="email" autocomplete="email" required></div>
     <div class="field"><label for="login-password">Mot de passe</label>
       <input id="login-password" name="password" type="password" autocomplete="current-password" required></div>
-    <button class="btn btn-block" type="submit" style="margin-top:1.2rem">Se connecter</button>
+    <button class="btn btn-block tap" type="submit" style="margin-top:1.2rem">Se connecter</button>
   </form>
 
   <form class="card card-pad-lg hidden" id="panel-signup" role="tabpanel" aria-labelledby="tab-signup">
-    <h2>Ouvrez votre studio</h2>
+    <h2 class="display">Ouvrez votre studio</h2>
     <p class="muted">Vous aurez votre lien de réservation à la fin de ce formulaire.</p>
     <div class="field"><label for="signup-studio">Nom du studio ou d'artiste</label>
       <input id="signup-studio" name="studio_name" required maxlength="80" placeholder="Atelier Noir"></div>
@@ -43,12 +46,13 @@
     <div class="field"><label for="signup-password">Mot de passe</label>
       <input id="signup-password" name="password" type="password" autocomplete="new-password" minlength="8" required>
       <p class="hint">8 caractères minimum.</p></div>
-    <button class="btn btn-block" type="submit" style="margin-top:1.2rem">Créer mon studio</button>
+    <button class="btn btn-block tap" type="submit" style="margin-top:1.2rem">Créer mon studio</button>
   </form>
 
-  <p class="hint center" style="margin-top:1.5rem">
-    Vous cherchez à vous faire tatouer ? Passez par le lien de réservation de votre artiste.
-  </p>
+    <p class="hint center" style="margin-top:1.5rem">
+      Vous cherchez à vous faire tatouer ? Passez par le lien de réservation de votre artiste.
+    </p>
+  </div>
 </main>
 
 <script type="module" src="/assets/login.js"></script>
