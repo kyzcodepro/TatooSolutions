@@ -121,6 +121,14 @@ Les réécritures de `vercel.json` envoient donc les pages vers les fichiers
 statiques, ce qui garde l'interface debout quel que soit le preset ; seul
 `/api/*` dépend du mode choisi.
 
+**Contrat d'entrée de la plateforme.** Vercel choisit son point d'entrée par le
+nom de fichier — `src/server.js` l'emporte sur le champ `main` — puis **importe**
+le module et exige un **export par défaut** qui soit un handler ou un serveur.
+Sans lui : `Invalid export found in module … The default export must be a function
+or server`, sortie en statut 1 à chaque requête, et une page de crash vide pendant
+que le CDN continue de servir les fichiers statiques. `src/server.js` et `start.js`
+exportent donc `handleRequest` par défaut — c'est structurel, pas cosmétique.
+
 Une réécriture peut transmettre à la fonction sa destination plutôt que le chemin
 demandé par le visiteur. `vercel.json` passe donc le chemin d'origine
 explicitement (`?__path=…`) et le routeur le rétablit, sinon toutes les routes

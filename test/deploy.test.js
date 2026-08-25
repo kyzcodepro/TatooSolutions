@@ -186,3 +186,22 @@ test('a rewritten path is recovered from the platform destination', async () => 
   assert.equal(health.status, 200);
   assert.equal((await health.json()).status, 'ok');
 });
+
+test('the module exports a default handler, as hosting platforms require', async () => {
+  // Vercel imports src/server.js and rejects it without a default export:
+  // "Invalid export found in module ... The default export must be a function or
+  // server", then exits status 1 on every request. Regression guard.
+  const mod = await import('../src/server.js');
+  assert.equal(typeof mod.default, 'function', 'src/server.js has a default export');
+  assert.equal(mod.default, mod.handleRequest, 'and it is the request handler');
+
+  // start.js listens as a side effect, so give it an ephemeral port and close it.
+  process.env.PORT = '0';
+  const entry = await import('../start.js');
+  try {
+    assert.equal(typeof entry.default, 'function', 'start.js exports a handler too');
+  } finally {
+    entry.server.close();
+    delete process.env.PORT;
+  }
+});

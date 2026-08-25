@@ -155,3 +155,13 @@ export function createApp() {
     else res.end();
   }));
 }
+
+// Platform entry contract.
+//
+// Vercel picks its function entry by filename — src/server.js wins over the
+// `main` field — imports it, and requires a default export that is a request
+// handler or a server. Without one it logs "Invalid export found in module" and
+// exits status 1 on every invocation, which surfaces as an empty crash page
+// while static files keep being served by the CDN. The default export is
+// therefore part of the deployment contract, not decoration: keep it.
+export default handleRequest;
