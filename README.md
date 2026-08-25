@@ -27,7 +27,7 @@ brief structuré → estimation automatique → devis + acompte → date bloqué
 ```bash
 npm run seed     # crée le studio de démo « Atelier Noir » et son historique
 npm start        # http://localhost:3000
-npm test         # 58 tests (estimation, parcours API, serverless, libSQL, envoi)
+npm test         # 60 tests (estimation, parcours API, serverless, libSQL, envoi)
 ```
 
 Compte de démonstration : **demo@inkflow.app** / **demotattoo**
@@ -278,6 +278,12 @@ L'expéditeur doit être **vérifié chez le fournisseur** (domaine authentifié
 sinon l'envoi est refusé et l'erreur remonte telle quelle dans le tableau de bord.
 Le client voit le nom du studio comme expéditeur et peut répondre directement à
 l'artiste : le `reply-to` porte son adresse.
+
+Les adresses en domaine réservé (`example.com`, `.test`, `.invalid` — RFC 2606 et
+6761) ne sont jamais envoyées dès qu'un fournisseur réel est configuré : aucun
+serveur ne les accepte, et les rebonds durs coûtent cher à un domaine d'envoi
+neuf. Elles sont retirées de la file avec un motif lisible. En mode `console`,
+elles restent affichées dans les logs — c'est ce qu'on veut en développement.
 
 Un message n'est marqué comme envoyé que si le fournisseur l'a accepté. En cas
 d'échec, la raison est conservée, la tentative comptée, et le message repasse au

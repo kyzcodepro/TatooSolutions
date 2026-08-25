@@ -4,7 +4,7 @@
 
 import { getDb, nowIso } from './db.js';
 import { formatMoney } from './pricing.js';
-import { createTransport } from './mailer.js';
+import { createTransport, isUndeliverable, configuredProvider } from './mailer.js';
 
 const HOUR = 3600000;
 const DAY = 24 * HOUR;
@@ -168,8 +168,18 @@ export async function dispatchDue(now = nowIso(), transport = null) {
     ORDER BY m.scheduled_for LIMIT 200
   `, [MAX_SEND_ATTEMPTS, now]);
 
+  // Reserved demo addresses matter only once a real provider is wired: bounces
+  // cost a young sending domain its reputation. In console mode they are exactly
+  // what local work and the demo want to see logged.
+  const sendingForReal = configuredProvider() !== 'console';
+
   let sent = 0;
   for (const message of due) {
+    if (sendingForReal && isUndeliverable(message.recipient)) {
+      await db.run('UPDATE messages SET attempts = ?, last_error = ? WHERE id = ?',
+        [MAX_SEND_ATTEMPTS, 'Adresse de démonstration (domaine réservé) — aucun envoi tenté', message.id]);
+      continue;
+    }
     try {
       await send(message);
       await db.run('UPDATE messages SET sent_at = ?, attempts = attempts + 1, last_error = NULL WHERE id = ?',

@@ -95,3 +95,43 @@ test('a message scheduled for later is left alone', async () => {
   await dispatchDue(later, async (m) => { seen.push(m.id); });
   assert.ok(seen.includes(id), 'and honoured when its time comes');
 });
+
+test('in console mode a demo address is still delivered to the log', async () => {
+  const id = await queueMessage({
+    artistId: artist.id, kind: 'request_received', recipient: 'demo@example.test',
+    subject: 'Démo', body: 'Rien ne part vraiment.',
+  });
+  const seen = [];
+  assert.equal(await dispatchDue(nowIso(), async (m) => { seen.push(m.id); }), 1);
+  assert.ok(seen.includes(id));
+});
+
+test('reserved demo addresses are retired instead of bounced', async () => {
+  const { isUndeliverable } = await import('../src/mailer.js');
+  for (const address of ['camille.roy@example.com', 'a@b.test', 'x@y.invalid', 'nope@example.org', 'broken']) {
+    assert.equal(isUndeliverable(address), true, address);
+  }
+  for (const address of ['contact@atelier-noir.fr', 'camille@gmail.com', 'a@sub.example.co']) {
+    assert.equal(isUndeliverable(address), false, address);
+  }
+
+  const id = await queueMessage({
+    artistId: artist.id, kind: 'request_received', recipient: 'camille.roy@example.com',
+    subject: 'Bienvenue', body: 'Suivi : {{base_url}}/q/abc',
+  });
+  // The guard only applies once a real provider is configured.
+  process.env.INKFLOW_MAIL_PROVIDER = 'resend';
+  const attempted = [];
+  let sent;
+  try {
+    sent = await dispatchDue(nowIso(), async (m) => { attempted.push(m.id); });
+  } finally {
+    delete process.env.INKFLOW_MAIL_PROVIDER;
+  }
+
+  assert.equal(attempted.includes(id), false, 'the transport was never asked to send it');
+  assert.equal(sent, 0);
+  const row = await db.get('SELECT * FROM messages WHERE id = ?', [id]);
+  assert.equal(row.sent_at, null);
+  assert.match(row.last_error, /domaine réservé/);
+});

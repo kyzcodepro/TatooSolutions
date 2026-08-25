@@ -77,6 +77,9 @@ const PROVIDERS = {
 
 export const providerNames = () => Object.keys(PROVIDERS);
 
+/** Which provider is configured; `console` means nothing leaves the machine. */
+export const configuredProvider = () => (process.env.INKFLOW_MAIL_PROVIDER || 'console').toLowerCase();
+
 /** `"Studio" <a@b.c>` -> parts; a bare address has no name. */
 export function splitAddress(value) {
   const match = /^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/.exec(value ?? '');
@@ -91,6 +94,20 @@ export function senderFor(from, studioName) {
   return `"${studioName.replace(/"/g, "'")}" <${address}>`;
 }
 
+// RFC 2606 / RFC 6761 reserve these for documentation and tests: no mail server
+// will ever accept them. Sending anyway earns hard bounces, and a young sending
+// domain pays for those in deliverability.
+const RESERVED_DOMAINS = new Set(['example.com', 'example.net', 'example.org', 'example.edu']);
+const RESERVED_TLDS = ['.test', '.example', '.invalid', '.localhost'];
+
+export function isUndeliverable(address) {
+  const at = String(address ?? '').lastIndexOf('@');
+  if (at === -1) return true;
+  const domain = address.slice(at + 1).toLowerCase();
+  if (RESERVED_DOMAINS.has(domain)) return true;
+  return RESERVED_TLDS.some((tld) => domain === tld.slice(1) || domain.endsWith(tld));
+}
+
 export function baseUrl() {
   return process.env.INKFLOW_BASE_URL || 'http://localhost:3000';
 }
@@ -103,7 +120,7 @@ export const renderBody = (message) => message.body.replaceAll('{{base_url}}', b
  * which is what local development and the demo deployment want.
  */
 export function createTransport({ fetchImpl = globalThis.fetch } = {}) {
-  const name = (process.env.INKFLOW_MAIL_PROVIDER || 'console').toLowerCase();
+  const name = configuredProvider();
   if (name === 'console') return consoleTransport;
 
   const provider = PROVIDERS[name];
