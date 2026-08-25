@@ -4,9 +4,6 @@
   "private": true,
   "description": "Inkflow — booking, deposits and no-show protection for tattoo artists",
   "type": "module",
-  "engines": {
-    "node": ">=22.13"
-  },
   "scripts": {
     "start": "node start.js",
     "dev": "node --watch start.js",

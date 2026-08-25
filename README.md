@@ -33,7 +33,13 @@ npm test         # 29 tests (estimation, parcours API complet, chemin serverless
 Compte de démonstration : **demo@inkflow.app** / **demotattoo**
 Page publique de démonstration : <http://localhost:3000/b/atelier-noir>
 
-Aucune dépendance à installer : le serveur tourne sur Node 22 (`node:http`, `node:sqlite`, `node:crypto`).
+Aucune dépendance à installer : le serveur tourne sur `node:http`, `node:sqlite`
+et `node:crypto`. **Node 22.13+ ou 24.x** (`node:sqlite` n'est utilisable sans
+drapeau qu'à partir de 22.13). Volontairement, `package.json` ne contient pas de
+champ `engines` : un pin de version y entre en conflit avec le sélecteur Node de
+Vercel et fait échouer le build — auquel cas la plateforme continue de servir le
+déploiement précédent. La version est donc choisie par l'hébergeur, et si elle est
+trop ancienne l'application le dit explicitement au démarrage au lieu de planter.
 
 ### Variables d'environnement
 
