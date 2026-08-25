@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demander un rendez-vous — Inkflow</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖋️</text></svg>">
+<link rel="stylesheet" href="/assets/app.css">
+<style>
+  .book-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr); gap: 1.5rem; align-items: start; }
+  @media (max-width: 900px) { .book-grid { grid-template-columns: 1fr; } .estimate-card { position: static !important; } }
+  .estimate-card { position: sticky; top: 82px; }
+  .estimate-price { font-size: 2rem; font-weight: 690; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+  .chip { border: 1px solid var(--line-strong); border-radius: 999px; padding: 0.35rem 0.75rem; cursor: pointer; font-size: 0.87rem; color: var(--muted); user-select: none; }
+  .chip input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .chip:has(input:checked) { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .chip:has(input:focus-visible) { box-shadow: 0 0 0 3px var(--accent-soft); }
+  .size-row { display: grid; grid-template-columns: 1fr 92px; gap: 0.75rem; align-items: center; }
+  input[type=range] { padding: 0; accent-color: var(--accent); }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="/"><span class="brand-mark">IF</span> Inkflow</a>
+    <nav class="nav"><span class="muted" id="nav-studio"></span></nav>
+  </div>
+</header>
+
+<main class="wrap" style="padding:2.2rem 0 4rem">
+  <div id="loading" class="empty">Chargement…</div>
+
+  <div id="closed" class="card card-pad-lg hidden center">
+    <h2>Les demandes sont fermées</h2>
+    <p class="muted" id="closed-text"></p>
+  </div>
+
+  <div id="content" class="hidden">
+    <div style="margin-bottom:1.6rem">
+      <span class="eyebrow" id="artist-styles"></span>
+      <h1 id="artist-name"></h1>
+      <p class="lede" id="artist-bio"></p>
+    </div>
+
+    <div class="book-grid">
+      <form class="card card-pad-lg" id="brief-form" novalidate>
+        <h3>Votre projet</h3>
+        <p class="muted">Plus le brief est précis, plus le devis arrive vite — et juste.</p>
+
+        <div class="field">
+          <label for="description">Décrivez le tatouage *</label>
+          <textarea id="description" name="description" required minlength="10" maxlength="2000"
+            placeholder="Un serpent enroulé autour d'une pivoine, style japonais traditionnel, sans couleur."></textarea>
+          <p class="hint">Au moins 10 caractères. Motif, ambiance, ce qui compte pour vous.</p>
+        </div>
+
+        <div class="field-row">
+          <div><label for="style">Style souhaité</label>
+            <input id="style" name="style" list="styles" maxlength="60" placeholder="japonais, fine line…">
+            <datalist id="styles"></datalist></div>
+          <div><label for="placement">Emplacement</label>
+            <input id="placement" name="placement" list="placements" maxlength="60" placeholder="avant-bras">
+            <datalist id="placements">
+              <option value="avant-bras"><option value="bras"><option value="épaule"><option value="dos">
+              <option value="cuisse"><option value="mollet"><option value="côtes"><option value="sternum">
+              <option value="main"><option value="doigt"><option value="cou"><option value="pied">
+              <option value="genou"><option value="coude"><option value="ventre"><option value="cheville">
+            </datalist></div>
+        </div>
+
+        <div class="field" style="margin-top:0.9rem">
+          <label for="size">Taille (plus grande dimension) — <b id="size-label">15 cm</b></label>
+          <div class="size-row">
+            <input id="size" name="size_cm" type="range" min="2" max="60" step="1" value="15">
+            <input id="size-number" type="number" min="1" max="200" value="15" aria-label="Taille en centimètres">
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div><label for="color_mode">Rendu</label><select id="color_mode" name="color_mode"></select></div>
+          <div><label for="detail_level">Niveau de détail</label><select id="detail_level" name="detail_level"></select></div>
+        </div>
+
+        <div class="field-row">
+          <div><label for="budget">Votre budget (€)</label>
+            <input id="budget" name="budget" type="number" min="0" step="10" placeholder="600">
+            <p class="hint">Facultatif, mais ça évite les allers-retours.</p></div>
+          <div><label>Recouvrement</label>
+            <label class="check" style="margin-top:0.5rem"><input type="checkbox" id="cover_up" name="cover_up">
+              <span>C'est un cover-up d'un tatouage existant</span></label></div>
+        </div>
+
+        <hr class="divider">
+        <h3>Références et disponibilités</h3>
+        <div class="field">
+          <label for="references">Liens vers vos images de référence</label>
+          <textarea id="references" name="references" style="min-height:70px"
+            placeholder="https://… (une par ligne, Pinterest, Instagram, Drive…)"></textarea>
+        </div>
+        <div class="field">
+          <label>Quand êtes-vous disponible ?</label>
+          <div class="chips" id="availability"></div>
+        </div>
+
+        <hr class="divider">
+        <h3>Vos coordonnées</h3>
+        <div class="field-row">
+          <div><label for="client_name">Nom *</label><input id="client_name" name="client_name" required maxlength="80"></div>
+          <div><label for="client_email">Email *</label><input id="client_email" name="client_email" type="email" required></div>
+          <div><label for="client_phone">Téléphone</label><input id="client_phone" name="client_phone" maxlength="30"></div>
+        </div>
+        <label class="check" style="margin-top:1rem">
+          <input type="checkbox" id="is_adult" required>
+          <span>Je certifie avoir 18 ans ou plus et je viendrai avec une pièce d'identité. *</span>
+        </label>
+        <label class="check" style="margin-top:0.6rem">
+          <input type="checkbox" id="consent" required>
+          <span>J'ai lu les conditions : l'acompte bloque la date et reste acquis en cas d'annulation tardive. *</span>
+        </label>
+
+        <button class="btn btn-block" type="submit" style="margin-top:1.4rem">Envoyer ma demande</button>
+        <p class="hint center" style="margin-top:0.7rem">Aucun paiement à cette étape.</p>
+      </form>
+
+      <aside class="card estimate-card" aria-live="polite">
+        <div class="label muted" style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.06em">Estimation en direct</div>
+        <div class="estimate-price" id="estimate-range">—</div>
+        <p class="muted" id="estimate-detail" style="margin:0.2rem 0 0">Renseignez la taille et le rendu.</p>
+        <div id="budget-warning" class="hidden" style="margin-top:0.9rem;padding:0.7rem 0.8rem;border-radius:9px;background:var(--warn-soft);color:var(--warn);font-size:0.87rem"></div>
+        <hr class="divider">
+        <dl style="margin:0;display:grid;gap:0.55rem;font-size:0.9rem">
+          <div class="row-between"><dt class="muted">Acompte à prévoir</dt><dd class="mono" style="margin:0" id="estimate-deposit">—</dd></div>
+          <div class="row-between"><dt class="muted">Taux horaire</dt><dd class="mono" style="margin:0" id="artist-rate">—</dd></div>
+          <div class="row-between"><dt class="muted">Minimum studio</dt><dd class="mono" style="margin:0" id="artist-minimum">—</dd></div>
+          <div class="row-between"><dt class="muted">Annulation libre</dt><dd class="mono" style="margin:0" id="artist-cancel">—</dd></div>
+        </dl>
+        <p class="hint" style="margin-top:1rem">
+          Fourchette indicative calculée sur les tarifs du studio. Le devis ferme est envoyé par l'artiste après lecture de votre projet.
+        </p>
+      </aside>
+    </div>
+  </div>
+
+  <div id="sent" class="card card-pad-lg hidden center" style="max-width:640px;margin-inline:auto">
+    <div style="font-size:2.4rem">✓</div>
+    <h2>Demande envoyée</h2>
+    <p class="muted" id="sent-text"></p>
+    <a class="btn" id="sent-link" href="#">Suivre ma demande</a>
+    <p class="hint" style="margin-top:1rem">Gardez ce lien : le devis et la confirmation d'acompte s'y afficheront.</p>
+  </div>
+</main>
+
+<script type="module" src="/assets/book.js"></script>
+</body>
+</html>

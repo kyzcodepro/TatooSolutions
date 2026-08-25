@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inkflow — mon studio</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖋️</text></svg>">
+<link rel="stylesheet" href="/assets/app.css">
+<style>
+  .link-box { display: flex; gap: 0.5rem; align-items: center; background: var(--bg-input); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); padding: 0.35rem 0.35rem 0.35rem 0.8rem; }
+  .link-box code { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.86rem; color: var(--muted); }
+  .filters { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 1rem 0; }
+  .filter { border: 1px solid var(--line-strong); background: transparent; color: var(--muted); border-radius: 999px; padding: 0.3rem 0.8rem; font: inherit; font-size: 0.86rem; cursor: pointer; }
+  .filter[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .warn-line { margin-top: 0.6rem; padding: 0.5rem 0.7rem; border-radius: 8px; background: var(--warn-soft); color: var(--warn); font-size: 0.85rem; }
+  .refs a { color: var(--muted); font-size: 0.83rem; }
+  .outbox-item { border-bottom: 1px solid var(--line); padding: 0.75rem 0; }
+  .outbox-item:last-child { border-bottom: 0; }
+  .outbox-body { white-space: pre-wrap; color: var(--muted); font-size: 0.86rem; margin-top: 0.35rem; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="/"><span class="brand-mark">IF</span> Inkflow</a>
+    <nav class="nav">
+      <span class="muted" id="nav-studio"></span>
+      <button class="btn btn-quiet btn-sm" id="logout">Déconnexion</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" style="padding:1.8rem 0 4rem">
+  <div class="row-between" style="margin-bottom:1.2rem">
+    <div>
+      <h2 id="hello">Mon studio</h2>
+      <p class="muted" style="margin:0.2rem 0 0">Votre lien de réservation, à mettre en bio :</p>
+    </div>
+    <div class="link-box" style="min-width:min(420px,100%)">
+      <code id="booking-link">—</code>
+      <button class="btn btn-sm btn-ghost" id="copy-link">Copier</button>
+      <a class="btn btn-sm btn-quiet" id="open-link" href="#" target="_blank" rel="noopener">Ouvrir</a>
+    </div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="tabs" role="tablist" style="margin:1.6rem 0 1rem">
+    <button class="tab" role="tab" data-panel="inbox" aria-selected="true">Demandes <span id="inbox-count" class="badge"></span></button>
+    <button class="tab" role="tab" data-panel="agenda" aria-selected="false">Agenda</button>
+    <button class="tab" role="tab" data-panel="outbox" aria-selected="false">Messages</button>
+    <button class="tab" role="tab" data-panel="settings" aria-selected="false">Réglages</button>
+  </div>
+
+  <section id="panel-inbox">
+    <div class="filters" id="filters"></div>
+    <div id="requests"></div>
+  </section>
+
+  <section id="panel-agenda" class="hidden">
+    <div class="grid" style="grid-template-columns:minmax(0,1.5fr) minmax(260px,0.5fr)">
+      <div>
+        <h3>Séances à venir</h3>
+        <div id="appointments" style="margin-top:0.8rem"></div>
+        <h3 style="margin-top:2rem">Historique</h3>
+        <div id="appointments-past" style="margin-top:0.8rem"></div>
+      </div>
+      <aside class="card">
+        <h3>Fermer des dates</h3>
+        <p class="muted" style="font-size:0.88rem">Congés, conventions, jours off : personne ne pourra réserver dessus.</p>
+        <form id="block-form" class="stack">
+          <div><label for="block-start">Du</label><input id="block-start" type="datetime-local" required></div>
+          <div><label for="block-end">Au</label><input id="block-end" type="datetime-local" required></div>
+          <div><label for="block-label">Motif</label><input id="block-label" maxlength="80" placeholder="Convention Berlin"></div>
+          <button class="btn btn-block btn-ghost" type="submit">Bloquer</button>
+        </form>
+        <hr class="divider">
+        <div id="blocks"></div>
+      </aside>
+    </div>
+  </section>
+
+  <section id="panel-outbox" class="hidden">
+    <div class="row-between">
+      <div>
+        <h3>Ce que reçoivent vos clients</h3>
+        <p class="muted" style="margin:0.2rem 0 0">Rappels, confirmations et suivi de cicatrisation partent automatiquement.</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="dispatch">Envoyer ce qui est dû</button>
+    </div>
+    <div class="card" style="margin-top:1rem"><div id="messages"></div></div>
+  </section>
+
+  <section id="panel-settings" class="hidden">
+    <form class="card card-pad-lg" id="settings-form" style="max-width:720px">
+      <h3>Profil public</h3>
+      <div class="field-row">
+        <div><label for="set-studio">Nom du studio</label><input id="set-studio" name="studio_name" maxlength="80"></div>
+        <div><label for="set-city">Ville</label><input id="set-city" name="city" maxlength="80"></div>
+      </div>
+      <div class="field"><label for="set-bio">Présentation</label>
+        <textarea id="set-bio" name="bio" maxlength="1000" style="min-height:90px"></textarea></div>
+      <div class="field"><label for="set-styles">Styles (séparés par des virgules)</label>
+        <input id="set-styles" name="styles" placeholder="japonais, blackwork, fine line"></div>
+
+      <hr class="divider">
+      <h3>Tarifs et conditions</h3>
+      <p class="muted" style="font-size:0.88rem">C'est avec ça que l'estimation automatique est calculée.</p>
+      <div class="field-row">
+        <div><label for="set-rate">Taux horaire (€)</label><input id="set-rate" type="number" min="10" step="5"></div>
+        <div><label for="set-minimum">Minimum studio (€)</label><input id="set-minimum" type="number" min="0" step="5"></div>
+        <div><label for="set-deposit">Acompte (%)</label><input id="set-deposit" type="number" min="0" max="100" step="5"></div>
+        <div><label for="set-cancel">Annulation libre (h)</label><input id="set-cancel" type="number" min="0" max="336" step="1"></div>
+      </div>
+      <label class="check" style="margin-top:1rem">
+        <input type="checkbox" id="set-accepting"><span>J'accepte de nouvelles demandes</span>
+      </label>
+      <button class="btn" type="submit" style="margin-top:1.2rem">Enregistrer</button>
+    </form>
+  </section>
+</main>
+
+<div id="modal-host"></div>
+<script type="module" src="/assets/dashboard.js"></script>
+</body>
+</html>

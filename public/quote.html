@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Votre devis — Inkflow</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖋️</text></svg>">
+<link rel="stylesheet" href="/assets/app.css">
+<style>
+  .steps { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+  .step { flex: 1; }
+  .step .bar { height: 4px; border-radius: 2px; background: var(--line); }
+  .step.done .bar { background: var(--accent); }
+  .step .name { font-size: 0.78rem; color: var(--faint); margin-top: 0.4rem; }
+  .step.done .name { color: var(--text); }
+  .price-line { display: flex; justify-content: space-between; gap: 1rem; padding: 0.55rem 0; border-bottom: 1px dashed var(--line); }
+  .price-line:last-child { border-bottom: 0; }
+  .price-total { font-size: 1.5rem; font-weight: 680; letter-spacing: -0.02em; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="/"><span class="brand-mark">IF</span> Inkflow</a>
+    <nav class="nav"><span class="muted" id="nav-studio"></span></nav>
+  </div>
+</header>
+
+<main class="wrap-narrow" style="padding:2.5rem 0 4rem">
+  <div id="loading" class="empty">Chargement…</div>
+  <div id="view" class="hidden">
+    <div class="steps" id="steps"></div>
+    <h1 id="headline"></h1>
+    <p class="lede" id="subline"></p>
+    <div id="panel" class="stack" style="margin-top:1.6rem"></div>
+  </div>
+</main>
+
+<script type="module" src="/assets/quote.js"></script>
+</body>
+</html>
