@@ -82,3 +82,36 @@ test('unknown endpoints still return JSON, not a crash', async () => {
   assert.equal(res.status, 404);
   assert.equal((await res.json()).error, 'Unknown endpoint');
 });
+
+test('/api/health reports how the deployment is wired', async () => {
+  const res = await fetch(`${base}/api/health`);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.status, 'ok');
+  assert.equal(body.serverless, true);
+  assert.equal(body.database.file, process.env.INKFLOW_DB);
+  assert.ok(body.database.artists >= 1, 'the demo studio is present');
+});
+
+test('a broken application reports why instead of crashing the function', async () => {
+  const { createHandler } = await import('../api/index.js');
+  const failing = createHandler(() => {
+    const err = new Error('node:sqlite is unavailable on Node v20.0.0');
+    err.code = 'ERR_UNKNOWN_BUILTIN_MODULE';
+    return Promise.reject(err);
+  });
+  const broken = createServer(failing);
+  await new Promise((done) => broken.listen(0, done));
+
+  const res = await fetch(`http://127.0.0.1:${broken.address().port}/`);
+  assert.equal(res.status, 500);
+  const report = await res.json();
+  assert.match(report.error.message, /node:sqlite is unavailable/);
+  assert.equal(report.error.code, 'ERR_UNKNOWN_BUILTIN_MODULE');
+  assert.equal(report.checks.node_sqlite, 'ok', 'the probe exercises the real built-in');
+  assert.equal(report.checks.tmp_writable, 'ok');
+  assert.ok(report.env_set.includes('VERCEL'));
+  assert.ok(!JSON.stringify(report).includes(process.env.INKFLOW_DB),
+    'the report lists env names, never their values');
+  broken.close();
+});

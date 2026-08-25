@@ -27,7 +27,7 @@ brief structuré → estimation automatique → devis + acompte → date bloqué
 ```bash
 npm run seed     # crée le studio de démo « Atelier Noir » et son historique
 npm start        # http://localhost:3000
-npm test         # 20 tests (moteur d'estimation + parcours API complet)
+npm test         # 29 tests (estimation, parcours API complet, chemin serverless)
 ```
 
 Compte de démonstration : **demo@inkflow.app** / **demotattoo**
@@ -44,6 +44,7 @@ Aucune dépendance à installer : le serveur tourne sur Node 22 (`node:http`, `n
 | `INKFLOW_BASE_URL` | `http://localhost:3000` | URL utilisée dans les liens envoyés aux clients |
 | `INKFLOW_QUIET` | — | `1` coupe l'affichage des messages sortants dans la console |
 | `INKFLOW_DEMO` | `1` en serverless, sinon `0` | Crée le studio de démonstration si la base est vide |
+| `INKFLOW_SERVERLESS` | — | Force le mode serverless (base dans `/tmp`, envoi des rappels au fil du trafic) |
 
 ## Parcours
 
@@ -111,6 +112,31 @@ dépendance : `vercel --prod` suffit, ou un import du dépôt depuis l'interface
 > démonstration quand elle est vide : le site est consultable et le parcours complet
 > fonctionne, mais **une réservation prise sur ce déploiement peut disparaître**.
 > C'est une vitrine, pas un environnement de production.
+
+#### Si la fonction renvoie une erreur
+
+`api/index.js` n'importe l'application qu'à l'intérieur du handler. Toute panne au
+chargement (built-in manquant, disque non inscriptible, bundle incomplet) renvoie
+donc un rapport JSON exploitable — au lieu de la page `FUNCTION_INVOCATION_FAILED`
+qui n'explique rien :
+
+```json
+{
+  "error":   { "name": "...", "message": "...", "code": "...", "stack": ["..."] },
+  "runtime": { "node": "v22.x", "region": "arn1", "commit": "44db53e" },
+  "checks":  { "node_sqlite": "ok", "tmp_writable": "ok", "cwd_writable": "no: EROFS",
+               "public_readable": "ok" },
+  "env_set": ["VERCEL"]
+}
+```
+
+`runtime.commit` indique quel commit est réellement déployé — utile quand le crash
+vient d'un déploiement antérieur au correctif. Le rapport ne contient que des noms
+de variables d'environnement, jamais leurs valeurs.
+
+Quand le déploiement démarre correctement, `GET /api/health` donne la version de
+Node, le fichier de base utilisé, s'il est éphémère, et le nombre de messages en
+attente.
 
 Le planificateur ne peut pas tourner en tâche de fond dans une fonction : en mode
 serverless, les messages dus sont envoyés à l'occasion du trafic (une passe par

@@ -91,7 +91,12 @@ function dispatchOnTraffic() {
   }
 }
 
-/** Node-style handler, shared by the local server and the serverless entry point. */
+/**
+ * Node-style handler, shared by the local server and the serverless entry point.
+ * A bootstrap failure (no database, unwritable disk, missing built-in) is left to
+ * propagate: the serverless entry point turns it into a diagnostics response, and
+ * createApp() below keeps a local process alive.
+ */
 export async function handleRequest(req, res) {
   bootstrap();
   if (isServerless()) dispatchOnTraffic();
@@ -114,7 +119,11 @@ export async function handleRequest(req, res) {
 
 export function createApp() {
   bootstrap();
-  return createServer(handleRequest);
+  return createServer((req, res) => handleRequest(req, res).catch((err) => {
+    console.error('[fatal]', err);
+    if (!res.headersSent) json(res, 500, { error: 'Internal server error', detail: err.message });
+    else res.end();
+  }));
 }
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);

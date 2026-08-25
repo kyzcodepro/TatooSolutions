@@ -1,6 +1,6 @@
 import { Router, json, readJson, setCookie, bad, conflict, notFound } from '../http.js';
 import * as v from '../validate.js';
-import { getDb, nowIso } from '../db.js';
+import { getDb, nowIso, databaseFile, isEphemeral, isServerless } from '../db.js';
 import {
   hashPassword, verifyPassword, createSession, destroySession, requireArtist,
   currentArtist, publicArtist, SESSION_COOKIE,
@@ -10,6 +10,26 @@ import { dispatchDue } from '../messages.js';
 import * as service from '../service.js';
 
 export const api = new Router();
+
+/* -------------------------------------------------------------------- health */
+
+// Answers "is this deployment actually wired up?" without exposing any data.
+api.get('/api/health', async (req, res) => {
+  const db = getDb();
+  const { count } = db.prepare('SELECT COUNT(*) AS count FROM artists').get();
+  json(res, 200, {
+    status: 'ok',
+    node: process.version,
+    serverless: isServerless(),
+    database: {
+      file: databaseFile(),
+      ephemeral: isEphemeral(),
+      artists: count,
+    },
+    pending_messages: db.prepare('SELECT COUNT(*) AS count FROM messages WHERE sent_at IS NULL').get().count,
+    time: nowIso(),
+  });
+});
 
 /* ---------------------------------------------------------------------- auth */
 

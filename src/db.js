@@ -1,5 +1,5 @@
-import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
@@ -106,6 +106,27 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE INDEX IF NOT EXISTS idx_messages_due ON messages(sent_at, scheduled_for);
 `;
 
+let DatabaseSync = null;
+
+/**
+ * node:sqlite ships from Node 22.5 and is flagless from 22.13. Loading it lazily
+ * (instead of a static import) keeps an old runtime from aborting the whole module
+ * with an opaque error before anything can report the real requirement.
+ */
+function sqlite() {
+  if (DatabaseSync) return DatabaseSync;
+  try {
+    ({ DatabaseSync } = createRequire(import.meta.url)('node:sqlite'));
+  } catch (err) {
+    throw new Error(
+      `node:sqlite is unavailable on Node ${process.version} (${err.code ?? err.name}). `
+      + 'Inkflow needs Node 22.13 or newer — set the runtime accordingly, '
+      + 'or switch src/db.js to a hosted database (see the README).',
+    );
+  }
+  return DatabaseSync;
+}
+
 let db = null;
 
 /**
@@ -143,7 +164,7 @@ export function getDb() {
     }
   }
   resolvedFile = file;
-  db = new DatabaseSync(file);
+  db = new (sqlite())(file);
   db.exec('PRAGMA journal_mode = WAL;');
   db.exec('PRAGMA foreign_keys = ON;');
   db.exec(SCHEMA);
