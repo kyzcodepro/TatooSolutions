@@ -110,25 +110,21 @@ Points d'attention côté sécurité et intégrité :
 
 ### Vercel (démo)
 
-**Preset « Node » (recommandé).** Vercel exécute `npm start`, votre serveur reçoit
-toutes les routes, et le planificateur tourne comme en local. Rien à configurer :
-`vercel.json` ne contient que quatre réécritures vers des pages statiques
-(`/login`, `/app`, `/b/:slug`, `/q/:token`), sans effet sur ce mode puisqu'elles
-servent exactement les mêmes fichiers que le serveur.
+**Preset recommandé : « Other ».** Les pages sont servies par le CDN depuis
+`public/`, et `api/index.js` traite `/api/*` comme fonction serverless. C'est la
+configuration que `vercel.json` décrit et que les tests couvrent.
 
-**Preset « Other » (mode fonction).** `api/index.js` sert alors de point d'entrée.
-Ajoutez dans ce cas la réécriture attrape-tout et l'embarquement des pages :
+Le preset « Node » (Vercel lance `npm start` et proxifie vers votre serveur) n'a
+pas fonctionné sur ce projet : le serveur n'était jamais démarré et toute route
+dynamique renvoyait `FUNCTION_INVOCATION_FAILED`, y compris une fonction inerte.
+Les réécritures de `vercel.json` envoient donc les pages vers les fichiers
+statiques, ce qui garde l'interface debout quel que soit le preset ; seul
+`/api/*` dépend du mode choisi.
 
-```json
-{
-  "functions": { "api/index.js": { "includeFiles": "public/**" } },
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
-}
-```
-
-Ne mettez jamais les deux configurations en même temps : avec le preset Node,
-l'attrape-tout détourne tout le trafic vers une fonction, et un bloc `functions`
-qui ne correspond à aucune fonction construite fait échouer le build.
+Une réécriture peut transmettre à la fonction sa destination plutôt que le chemin
+demandé par le visiteur. `vercel.json` passe donc le chemin d'origine
+explicitement (`?__path=…`) et le routeur le rétablit, sinon toutes les routes
+ressembleraient à `/api/index`.
 
 Aucune dépendance, aucun build : `vercel --prod` suffit, ou un import du dépôt
 depuis l'interface Vercel.
@@ -158,6 +154,7 @@ les deux URL suivantes disent ce qu'il fait.
 
 | URL | Réponse attendue | Ce que dit une autre réponse |
 | --- | --- | --- |
+| `/build.json` | le commit construit, la branche, l'heure du build | 404 : le build n'a pas tourné — regardez les Build Logs |
 | `/deploy-check.txt` | le marqueur de déploiement | 404 : ce commit n'est pas en production |
 | `/api/ping` | `{"probe":"function"}` ou `{"probe":"app"}` avec le commit déployé | Ni l'un ni l'autre : Vercel ne construit pas `api/` — vérifier Framework Preset (« Other ») et Root Directory du projet |
 | `/api/health` | `status: ok`, version de Node, base utilisée | Rapport d'erreur JSON : l'application démarre mal, le message dit pourquoi |

@@ -174,3 +174,15 @@ test('a server whose database cannot open still listens and says why', async () 
     child.kill();
   }
 });
+
+test('a rewritten path is recovered from the platform destination', async () => {
+  // vercel.json rewrites /api/x to /api/index?__path=/api/x; the router must see
+  // the original path, not the rewrite destination.
+  const res = await fetch(`${base}/api/index?__path=/api/ping`);
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).probe, 'app');
+
+  const health = await fetch(`${base}/api/index?__path=/api/health`);
+  assert.equal(health.status, 200);
+  assert.equal((await health.json()).status, 'ok');
+});

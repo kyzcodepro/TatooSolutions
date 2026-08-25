@@ -8,7 +8,8 @@
     "start": "node start.js",
     "dev": "node --watch start.js",
     "seed": "node src/seed.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "build": "node scripts/write-build-info.js"
   },
   "main": "start.js"
 }

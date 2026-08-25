@@ -114,7 +114,7 @@ export async function handleRequest(req, res) {
     return renderDiagnostics(res, err);
   }
   if (isServerless()) dispatchOnTraffic();
-  const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`);
+  const url = requestUrl(req);
   try {
     const match = api.match(req.method, url.pathname);
     if (match) return await match.handler(req, res, { params: match.params, url });
@@ -129,6 +129,22 @@ export async function handleRequest(req, res) {
     console.error('[error]', req.method, url.pathname, err);
     return json(res, 500, { error: 'Internal server error' });
   }
+}
+
+/**
+ * A platform rewrite can hand the function its destination path rather than the
+ * one the visitor asked for, which would make every route look like /api/index.
+ * vercel.json therefore passes the original path explicitly, and it wins when
+ * present. Everywhere else req.url is already the real thing.
+ */
+function requestUrl(req) {
+  const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`);
+  const original = url.searchParams.get('__path');
+  if (original && original.startsWith('/')) {
+    url.searchParams.delete('__path');
+    url.pathname = original;
+  }
+  return url;
 }
 
 /** Builds the HTTP server. Deliberately does no I/O: it must never fail to listen. */
