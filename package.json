@@ -11,5 +11,8 @@
     "test": "node --test test/*.test.js",
     "build": "node scripts/write-build-info.js"
   },
-  "main": "start.js"
+  "main": "start.js",
+  "dependencies": {
+    "@libsql/client": "^0.17.4"
+  }
 }

@@ -59,29 +59,37 @@ async function serveStatic(res, pathname) {
 }
 
 let booted = false;
+let bootPromise = null;
 
 /**
  * One-time per-instance setup. On a serverless platform every cold start gets a
- * fresh /tmp database, so the demo studio is recreated to avoid a blank site.
+ * fresh /tmp database, so the demo studio is recreated to avoid a blank site —
+ * unless a durable backend (Turso) is configured, where seeding an empty database
+ * happens once and then never again.
  */
 export function bootstrap() {
-  if (booted) return;
+  if (booted) return Promise.resolve();
   // Only mark the instance as booted once this actually succeeded, otherwise the
   // failure is reported on the first request and silently forgotten afterwards —
   // leaving a site that serves pages on top of an application that cannot work.
-  getDb();
-  const demo = process.env.INKFLOW_DEMO ?? (isServerless() ? '1' : '0');
-  if (demo === '1') {
-    try {
-      seedIfEmpty();
-    } catch (err) {
-      console.error('[seed]', err);
-    }
+  if (!bootPromise) {
+    bootPromise = (async () => {
+      await getDb();
+      const demo = process.env.INKFLOW_DEMO ?? (isServerless() ? '1' : '0');
+      if (demo === '1') {
+        try {
+          await seedIfEmpty();
+        } catch (err) {
+          console.error('[seed]', err);
+        }
+      }
+      if (isEphemeral()) {
+        console.warn('[db] running on an ephemeral database: bookings are lost on the next cold start');
+      }
+      booted = true;
+    })().catch((err) => { bootPromise = null; throw err; });
   }
-  if (isEphemeral()) {
-    console.warn('[db] running on an ephemeral database: bookings are lost on the next cold start');
-  }
-  booted = true;
+  return bootPromise;
 }
 
 // Serverless has no long-running timer, so reminders are flushed opportunistically
@@ -90,11 +98,8 @@ let lastDispatch = 0;
 function dispatchOnTraffic() {
   if (Date.now() - lastDispatch < 60000) return;
   lastDispatch = Date.now();
-  try {
-    dispatchDue();
-  } catch (err) {
-    console.error('[scheduler]', err);
-  }
+  // Deliberately not awaited: a visitor should never wait on someone else's reminders.
+  dispatchDue().catch((err) => console.error('[scheduler]', err));
 }
 
 /**
@@ -108,7 +113,7 @@ function dispatchOnTraffic() {
  */
 export async function handleRequest(req, res) {
   try {
-    bootstrap();
+    await bootstrap();
   } catch (err) {
     console.error('[fatal] bootstrap', err);
     return renderDiagnostics(res, err);

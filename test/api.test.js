@@ -235,8 +235,9 @@ test('expired quotes cannot be accepted', async () => {
   });
   // Push the deadline into the past the way a stale quote would age out.
   const { getDb } = await import('../src/db.js');
-  getDb().prepare('UPDATE requests SET quote_expires_at = ? WHERE id = ?')
-    .run(new Date(Date.now() - 1000).toISOString(), requestId);
+  const db = await getDb();
+  await db.run('UPDATE requests SET quote_expires_at = ? WHERE id = ?',
+    [new Date(Date.now() - 1000).toISOString(), requestId]);
 
   const accepted = await clientCall('POST', `/api/public/quotes/${created.data.request.public_token}/accept`);
   assert.equal(accepted.status, 409);

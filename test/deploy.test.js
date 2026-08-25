@@ -89,7 +89,8 @@ test('/api/health reports how the deployment is wired', async () => {
   const body = await res.json();
   assert.equal(body.status, 'ok');
   assert.equal(body.serverless, true);
-  assert.equal(body.database.file, process.env.INKFLOW_DB);
+  assert.equal(body.database.backend, 'sqlite');
+  assert.equal(body.database.location, process.env.INKFLOW_DB);
   assert.ok(body.database.artists >= 1, 'the demo studio is present');
 });
 

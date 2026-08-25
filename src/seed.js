@@ -57,84 +57,93 @@ const BRIEFS = [
   },
 ];
 
-function resetDemo(db) {
-  const existing = db.prepare('SELECT id FROM artists WHERE email = ?').get(DEMO_EMAIL);
-  if (existing) db.prepare('DELETE FROM artists WHERE id = ?').run(existing.id);
+async function resetDemo(db) {
+  const existing = await db.get('SELECT id FROM artists WHERE email = ?', [DEMO_EMAIL]);
+  if (!existing) return;
+  // Cascades are not guaranteed on every backend: clear the children explicitly.
+  for (const table of ['messages', 'appointments', 'blocks', 'requests']) {
+    await db.run(`DELETE FROM ${table} WHERE artist_id = ?`, [existing.id]);
+  }
+  await db.run('DELETE FROM artists WHERE id = ?', [existing.id]);
 }
 
-function createDemoArtist(db) {
+async function createDemoArtist(db) {
   const { hash, salt } = hashPassword(DEMO_PASSWORD);
-  const info = db.prepare(`
+  const info = await db.run(`
     INSERT INTO artists (email, password_hash, password_salt, studio_name, slug, city, bio, styles,
                          hourly_rate_cents, minimum_cents, deposit_percent, cancellation_hours, created_at)
     VALUES (?, ?, ?, 'Atelier Noir', 'atelier-noir', 'Lyon', ?, ?, 13000, 9000, 30, 48, ?)
-  `).run(
+  `, [
     DEMO_EMAIL, hash, salt,
     'Atelier Noir — japonais traditionnel, blackwork et botanique. Grandes pièces sur plusieurs séances, sur rendez-vous uniquement.',
     JSON.stringify(['japonais', 'blackwork', 'botanique', 'fine line']),
     nowIso(),
-  );
-  return db.prepare('SELECT * FROM artists WHERE id = ?').get(Number(info.lastInsertRowid));
+  ]);
+  return db.get('SELECT * FROM artists WHERE id = ?', [info.lastInsertRowid]);
 }
 
-export function seedDemo() {
-  const db = getDb();
-  resetDemo(db);
-  const artist = createDemoArtist(db);
+export async function seedDemo() {
+  const db = await getDb();
+  await resetDemo(db);
+  const artist = await createDemoArtist(db);
 
-  const created = BRIEFS.map((brief) => service.createRequest(artist, { ...brief, is_adult: true }).request);
+  const created = [];
+  for (const brief of BRIEFS) {
+    const { request } = await service.createRequest(artist, { ...brief, is_adult: true });
+    created.push(request);
+  }
 
   // 1. Camille: quoted, deposit paid, session coming up.
-  service.sendQuote(artist, created[0].id, {
+  await service.sendQuote(artist, created[0].id, {
     price_cents: 62000, proposed_start: at(9, 10), duration_hours: 5,
     note: 'On fait la ligne complète en une séance de 5 h, ombrage sur une seconde si besoin.',
   });
-  service.acceptQuote(created[0].public_token);
+  await service.acceptQuote(created[0].public_token);
 
   // 2. Yanis: quote sent, waiting on the client.
-  service.sendQuote(artist, created[1].id, {
+  await service.sendQuote(artist, created[1].id, {
     price_cents: 14000, proposed_start: at(6, 18), duration_hours: 1.5,
     note: 'Prévoir 1 h 30, on cale la typo ensemble sur place.',
   });
 
   // 3. Léa: sleeve, budget far under — left in the inbox on purpose.
   // 4. Marc: cover-up quoted with a long first session.
-  service.sendQuote(artist, created[3].id, {
+  await service.sendQuote(artist, created[3].id, {
     price_cents: 110000, proposed_start: at(16, 9), duration_hours: 6,
     note: 'Première séance de 6 h pour poser le paysage, deux séances au total.',
   });
 
   // 5. Inès: went through the whole flow last month, session done.
-  service.sendQuote(artist, created[4].id, { price_cents: 18000, proposed_start: at(-24, 14), duration_hours: 1.5 });
-  const ines = service.acceptQuote(created[4].public_token);
-  service.completeAppointment(artist, ines.appointment.id);
+  await service.sendQuote(artist, created[4].id, { price_cents: 18000, proposed_start: at(-24, 14), duration_hours: 1.5 });
+  const ines = await service.acceptQuote(created[4].public_token);
+  await service.completeAppointment(artist, ines.appointment.id);
 
   // 6. Thomas: booked, then never showed up — deposit kept.
-  service.sendQuote(artist, created[5].id, { price_cents: 48000, proposed_start: at(-10, 11), duration_hours: 4 });
-  const thomas = service.acceptQuote(created[5].public_token);
-  service.markNoShow(artist, thomas.appointment.id);
+  await service.sendQuote(artist, created[5].id, { price_cents: 48000, proposed_start: at(-10, 11), duration_hours: 4 });
+  const thomas = await service.acceptQuote(created[5].public_token);
+  await service.markNoShow(artist, thomas.appointment.id);
 
-  service.createBlock(artist, at(30, 0), at(37, 23), 'Convention de Berlin');
+  await service.createBlock(artist, at(30, 0), at(37, 23), 'Convention de Berlin');
 
   // Anything already due (past confirmations, aftercare) is marked as delivered.
-  dispatchDue();
+  await dispatchDue();
 
-  return { artist, stats: service.stats(artist.id) };
+  return { artist, stats: await service.stats(artist.id) };
 }
 
 /** Fills an empty database so a fresh deployment is not a blank page. */
-export function seedIfEmpty() {
-  const db = getDb();
-  const { count } = db.prepare('SELECT COUNT(*) AS count FROM artists').get();
+export async function seedIfEmpty() {
+  const db = await getDb();
+  const { count } = await db.get('SELECT COUNT(*) AS count FROM artists');
   if (count > 0) return false;
-  seedDemo();
+  await seedDemo();
   console.log('[seed] empty database — demo studio created');
   return true;
 }
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
-  const { artist, stats } = seedDemo();
+  const { artist, stats } = await seedDemo();
   console.log('Seed terminé.');
   console.log(`  Studio      : ${artist.studio_name} (/b/${artist.slug})`);
   console.log(`  Connexion   : ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);

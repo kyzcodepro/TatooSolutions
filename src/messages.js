@@ -8,24 +8,25 @@ import { formatMoney } from './pricing.js';
 const HOUR = 3600000;
 const DAY = 24 * HOUR;
 
-export function queueMessage({
+export async function queueMessage({
   artistId, requestId = null, appointmentId = null, kind, recipient,
   subject, body, scheduledFor = nowIso(), channel = 'email',
 }) {
-  const info = getDb().prepare(`
+  const db = await getDb();
+  const info = await db.run(`
     INSERT INTO messages (artist_id, request_id, appointment_id, kind, channel, recipient,
                           subject, body, scheduled_for, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(artistId, requestId, appointmentId, kind, channel, recipient, subject, body, scheduledFor, nowIso());
-  return Number(info.lastInsertRowid);
+  `, [artistId, requestId, appointmentId, kind, channel, recipient, subject, body, scheduledFor, nowIso()]);
+  return info.lastInsertRowid;
 }
 
 const dateFr = (iso) => new Date(iso).toLocaleString('fr-FR', {
   weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris',
 });
 
-export function queueRequestReceived(artist, request, estimateResult) {
-  queueMessage({
+export async function queueRequestReceived(artist, request, estimateResult) {
+  await queueMessage({
     artistId: artist.id,
     requestId: request.id,
     kind: 'request_received',
@@ -44,8 +45,8 @@ export function queueRequestReceived(artist, request, estimateResult) {
   });
 }
 
-export function queueQuoteSent(artist, request) {
-  queueMessage({
+export async function queueQuoteSent(artist, request) {
+  await queueMessage({
     artistId: artist.id,
     requestId: request.id,
     kind: 'quote_sent',
@@ -65,8 +66,8 @@ export function queueQuoteSent(artist, request) {
   });
 }
 
-export function queueBookingConfirmed(artist, request, appointment) {
-  queueMessage({
+export async function queueBookingConfirmed(artist, request, appointment) {
+  await queueMessage({
     artistId: artist.id,
     requestId: request.id,
     appointmentId: appointment.id,
@@ -88,7 +89,7 @@ export function queueBookingConfirmed(artist, request, appointment) {
 
 // Reminder cadence tuned against no-shows: one far out to let people reschedule while
 // it is still free, one right at the cancellation cutoff, one the day before.
-export function scheduleAppointmentReminders(artist, request, appointment) {
+export async function scheduleAppointmentReminders(artist, request, appointment) {
   const start = new Date(appointment.starts_at).getTime();
   const cutoff = start - artist.cancellation_hours * HOUR;
   const plan = [
@@ -101,7 +102,7 @@ export function scheduleAppointmentReminders(artist, request, appointment) {
   ];
   for (const item of plan) {
     if (item.at <= Date.now()) continue; // in the past: pointless noise
-    queueMessage({
+    await queueMessage({
       artistId: artist.id, requestId: request.id, appointmentId: appointment.id,
       kind: item.kind, recipient: request.client_email, subject: item.subject,
       body: `Bonjour ${request.client_name},\n\n${item.body}`,
@@ -112,7 +113,7 @@ export function scheduleAppointmentReminders(artist, request, appointment) {
 
 // Healing follow-up: the artist's portfolio depends on healed results, and D+30
 // is when clients decide whether to book the next piece.
-export function scheduleAftercare(artist, request, appointment) {
+export async function scheduleAftercare(artist, request, appointment) {
   const end = new Date(appointment.ends_at).getTime();
   const plan = [
     { kind: 'aftercare_d1', at: end + DAY, subject: 'Jour 1 : soins de votre tatouage',
@@ -123,7 +124,7 @@ export function scheduleAftercare(artist, request, appointment) {
       body: `Envoyez une photo cicatrisée à ${artist.studio_name} : retouche offerte si besoin, et votre tatouage rejoint le portfolio (avec votre accord). Envie du prochain projet ? {{base_url}}/b/${artist.slug}` },
   ];
   for (const item of plan) {
-    queueMessage({
+    await queueMessage({
       artistId: artist.id, requestId: request.id, appointmentId: appointment.id,
       kind: item.kind, recipient: request.client_email, subject: item.subject,
       body: `Bonjour ${request.client_name},\n\n${item.body}`,
@@ -132,30 +133,33 @@ export function scheduleAftercare(artist, request, appointment) {
   }
 }
 
-export function cancelPendingMessages(appointmentId, kinds = null) {
-  const db = getDb();
+export async function cancelPendingMessages(appointmentId, kinds = null) {
+  const db = await getDb();
   if (kinds) {
     const placeholders = kinds.map(() => '?').join(',');
-    return db.prepare(
+    const info = await db.run(
       `DELETE FROM messages WHERE appointment_id = ? AND sent_at IS NULL AND kind IN (${placeholders})`,
-    ).run(appointmentId, ...kinds).changes;
+      [appointmentId, ...kinds],
+    );
+    return info.changes;
   }
-  return db.prepare('DELETE FROM messages WHERE appointment_id = ? AND sent_at IS NULL').run(appointmentId).changes;
+  const info = await db.run('DELETE FROM messages WHERE appointment_id = ? AND sent_at IS NULL', [appointmentId]);
+  return info.changes;
 }
 
 /**
  * Marks every due message as sent and hands it to the transport.
  * The transport is a seam: swap the console logger for Postmark/Brevo/Twilio in one place.
  */
-export function dispatchDue(now = nowIso(), transport = defaultTransport) {
-  const db = getDb();
-  const due = db.prepare(
+export async function dispatchDue(now = nowIso(), transport = defaultTransport) {
+  const db = await getDb();
+  const due = await db.all(
     'SELECT * FROM messages WHERE sent_at IS NULL AND scheduled_for <= ? ORDER BY scheduled_for LIMIT 200',
-  ).all(now);
-  const mark = db.prepare('UPDATE messages SET sent_at = ? WHERE id = ?');
+    [now],
+  );
   for (const message of due) {
     transport(message);
-    mark.run(nowIso(), message.id);
+    await db.run('UPDATE messages SET sent_at = ? WHERE id = ?', [nowIso(), message.id]);
   }
   return due.length;
 }

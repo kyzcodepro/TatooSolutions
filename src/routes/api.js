@@ -1,6 +1,6 @@
 import { Router, json, readJson, setCookie, bad, conflict, notFound } from '../http.js';
 import * as v from '../validate.js';
-import { getDb, nowIso, databaseFile, isEphemeral, isServerless } from '../db.js';
+import { getDb, nowIso, databaseFile, isEphemeral, isServerless, backend } from '../db.js';
 import {
   hashPassword, verifyPassword, createSession, destroySession, requireArtist,
   currentArtist, publicArtist, SESSION_COOKIE,
@@ -27,18 +27,20 @@ api.get('/api/ping', async (req, res) => {
 
 // Answers "is this deployment actually wired up?" without exposing any data.
 api.get('/api/health', async (req, res) => {
-  const db = getDb();
-  const { count } = db.prepare('SELECT COUNT(*) AS count FROM artists').get();
+  const db = await getDb();
+  const { count } = await db.get('SELECT COUNT(*) AS count FROM artists');
+  const pending = await db.get('SELECT COUNT(*) AS count FROM messages WHERE sent_at IS NULL');
   json(res, 200, {
     status: 'ok',
     node: process.version,
     serverless: isServerless(),
     database: {
-      file: databaseFile(),
+      backend: backend(),
+      location: backend() === 'turso' ? 'turso' : databaseFile(),
       ephemeral: isEphemeral(),
       artists: count,
     },
-    pending_messages: db.prepare('SELECT COUNT(*) AS count FROM messages WHERE sent_at IS NULL').get().count,
+    pending_messages: pending.count,
     time: nowIso(),
   });
 });
@@ -51,29 +53,29 @@ api.post('/api/auth/signup', async (req, res) => {
   const password = v.str(body.password, 'password', { min: 8, max: 200 });
   const studioName = v.str(body.studio_name, 'studio_name', { max: 80 });
   const city = v.str(body.city, 'city', { required: false, max: 80 });
-  const db = getDb();
+  const db = await getDb();
 
-  if (db.prepare('SELECT id FROM artists WHERE email = ?').get(email)) {
+  if (await db.get('SELECT id FROM artists WHERE email = ?', [email])) {
     throw conflict('An account already exists with this email');
   }
   const { hash, salt } = hashPassword(password);
-  const slug = uniqueSlug(v.slugify(studioName) || 'studio');
-  const info = db.prepare(`
+  const slug = await uniqueSlug(v.slugify(studioName) || 'studio');
+  const info = await db.run(`
     INSERT INTO artists (email, password_hash, password_salt, studio_name, slug, city, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(email, hash, salt, studioName, slug, city, nowIso());
+  `, [email, hash, salt, studioName, slug, city, nowIso()]);
 
-  const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(Number(info.lastInsertRowid));
+  const artist = await db.get('SELECT * FROM artists WHERE id = ?', [info.lastInsertRowid]);
   const session = createSession(artist.id);
   setCookie(res, SESSION_COOKIE, session.token, { maxAge: session.maxAge });
   json(res, 201, { artist: publicArtist(artist) });
 });
 
-function uniqueSlug(base) {
-  const db = getDb();
+async function uniqueSlug(base) {
+  const db = await getDb();
   let slug = base;
   let n = 2;
-  while (db.prepare('SELECT id FROM artists WHERE slug = ?').get(slug)) slug = `${base}-${n++}`;
+  while (await db.get('SELECT id FROM artists WHERE slug = ?', [slug])) slug = `${base}-${n++}`;
   return slug;
 }
 
@@ -81,7 +83,8 @@ api.post('/api/auth/login', async (req, res) => {
   const body = await readJson(req);
   const email = v.email(body.email);
   const password = v.str(body.password, 'password', { max: 200 });
-  const artist = getDb().prepare('SELECT * FROM artists WHERE email = ?').get(email);
+  const db = await getDb();
+  const artist = await db.get('SELECT * FROM artists WHERE email = ?', [email]);
   if (!artist || !verifyPassword(password, artist.password_hash, artist.password_salt)) {
     throw bad('Wrong email or password');
   }
@@ -97,12 +100,12 @@ api.post('/api/auth/logout', async (req, res) => {
 });
 
 api.get('/api/me', async (req, res) => {
-  const artist = currentArtist(req);
+  const artist = await currentArtist(req);
   json(res, 200, { artist: artist ? publicArtist(artist) : null });
 });
 
 api.patch('/api/me', async (req, res) => {
-  const artist = requireArtist(req);
+  const artist = await requireArtist(req);
   const body = await readJson(req);
   const fields = {
     studio_name: body.studio_name !== undefined ? v.str(body.studio_name, 'studio_name', { max: 80 }) : undefined,
@@ -118,16 +121,19 @@ api.patch('/api/me', async (req, res) => {
   };
   const entries = Object.entries(fields).filter(([, value]) => value !== undefined);
   if (entries.length) {
-    getDb().prepare(`UPDATE artists SET ${entries.map(([k]) => `${k} = ?`).join(', ')} WHERE id = ?`)
-      .run(...entries.map(([, value]) => value), artist.id);
+    const db = await getDb();
+    await db.run(
+      `UPDATE artists SET ${entries.map(([k]) => `${k} = ?`).join(', ')} WHERE id = ?`,
+      [...entries.map(([, value]) => value), artist.id],
+    );
   }
-  json(res, 200, { artist: publicArtist(service.getArtist(artist.id)) });
+  json(res, 200, { artist: publicArtist(await service.getArtist(artist.id)) });
 });
 
 /* -------------------------------------------------------------------- public */
 
 api.get('/api/public/artists/:slug', async (req, res, { params }) => {
-  const artist = service.getArtistBySlug(params.slug);
+  const artist = await service.getArtistBySlug(params.slug);
   if (!artist) throw notFound('Artist not found');
   json(res, 200, {
     artist: {
@@ -162,7 +168,7 @@ function parseBrief(body) {
 
 // Instant bracket while the client is still typing — no account, no persistence.
 api.post('/api/public/artists/:slug/estimate', async (req, res, { params }) => {
-  const artist = service.getArtistBySlug(params.slug);
+  const artist = await service.getArtistBySlug(params.slug);
   if (!artist) throw notFound('Artist not found');
   const body = await readJson(req);
   const brief = {
@@ -177,10 +183,10 @@ api.post('/api/public/artists/:slug/estimate', async (req, res, { params }) => {
 });
 
 api.post('/api/public/artists/:slug/requests', async (req, res, { params }) => {
-  const artist = service.getArtistBySlug(params.slug);
+  const artist = await service.getArtistBySlug(params.slug);
   if (!artist) throw notFound('Artist not found');
   const brief = parseBrief(await readJson(req));
-  const { request, estimate: result } = service.createRequest(artist, brief);
+  const { request, estimate: result } = await service.createRequest(artist, brief);
   json(res, 201, {
     request: { public_token: request.public_token, status: request.status },
     estimate: result,
@@ -190,32 +196,32 @@ api.post('/api/public/artists/:slug/requests', async (req, res, { params }) => {
 });
 
 api.get('/api/public/quotes/:token', async (req, res, { params }) => {
-  json(res, 200, service.quoteView(params.token));
+  json(res, 200, await service.quoteView(params.token));
 });
 
 api.post('/api/public/quotes/:token/accept', async (req, res, { params }) => {
-  json(res, 200, service.acceptQuote(params.token));
+  json(res, 200, await service.acceptQuote(params.token));
 });
 
 /* ------------------------------------------------------------ artist inboxes */
 
 api.get('/api/requests', async (req, res, { url }) => {
-  const artist = requireArtist(req);
+  const artist = await requireArtist(req);
   const status = url.searchParams.get('status');
   if (status && !service.REQUEST_STATUSES.includes(status)) throw bad('Unknown status filter');
-  json(res, 200, { requests: service.listRequests(artist.id, { status }) });
+  json(res, 200, { requests: await service.listRequests(artist.id, { status }) });
 });
 
 api.get('/api/requests/:id', async (req, res, { params }) => {
-  const artist = requireArtist(req);
-  const row = service.getRequestOwned(artist.id, v.int(params.id, 'id'));
+  const artist = await requireArtist(req);
+  const row = await service.getRequestOwned(artist.id, v.int(params.id, 'id'));
   json(res, 200, { request: service.hydrateRequest(row, artist) });
 });
 
 api.post('/api/requests/:id/quote', async (req, res, { params }) => {
-  const artist = requireArtist(req);
+  const artist = await requireArtist(req);
   const body = await readJson(req);
-  const request = service.sendQuote(artist, v.int(params.id, 'id'), {
+  const request = await service.sendQuote(artist, v.int(params.id, 'id'), {
     price_cents: v.int(body.price_cents, 'price_cents', { min: 500, max: 10000000 }),
     deposit_cents: body.deposit_cents !== undefined
       ? v.int(body.deposit_cents, 'deposit_cents', { min: 0, max: 10000000 }) : undefined,
@@ -229,18 +235,18 @@ api.post('/api/requests/:id/quote', async (req, res, { params }) => {
 });
 
 api.post('/api/requests/:id/decline', async (req, res, { params }) => {
-  const artist = requireArtist(req);
+  const artist = await requireArtist(req);
   const body = await readJson(req);
   const reason = v.str(body.reason, 'reason', { required: false, max: 300 });
-  json(res, 200, { request: service.declineRequest(artist, v.int(params.id, 'id'), reason) });
+  json(res, 200, { request: await service.declineRequest(artist, v.int(params.id, 'id'), reason) });
 });
 
 /* -------------------------------------------------------------- appointments */
 
 api.get('/api/appointments', async (req, res, { url }) => {
-  const artist = requireArtist(req);
+  const artist = await requireArtist(req);
   json(res, 200, {
-    appointments: service.listAppointments(artist.id, {
+    appointments: await service.listAppointments(artist.id, {
       from: url.searchParams.get('from'),
       to: url.searchParams.get('to'),
       status: url.searchParams.get('status'),
@@ -249,28 +255,28 @@ api.get('/api/appointments', async (req, res, { url }) => {
 });
 
 api.post('/api/appointments/:id/complete', async (req, res, { params }) => {
-  const artist = requireArtist(req);
-  json(res, 200, { appointment: service.completeAppointment(artist, v.int(params.id, 'id')) });
+  const artist = await requireArtist(req);
+  json(res, 200, { appointment: await service.completeAppointment(artist, v.int(params.id, 'id')) });
 });
 
 api.post('/api/appointments/:id/no-show', async (req, res, { params }) => {
-  const artist = requireArtist(req);
-  json(res, 200, { appointment: service.markNoShow(artist, v.int(params.id, 'id')) });
+  const artist = await requireArtist(req);
+  json(res, 200, { appointment: await service.markNoShow(artist, v.int(params.id, 'id')) });
 });
 
 api.post('/api/appointments/:id/reschedule', async (req, res, { params }) => {
-  const artist = requireArtist(req);
+  const artist = await requireArtist(req);
   const body = await readJson(req);
   const startsAt = v.isoDate(body.starts_at, 'starts_at');
   const hours = body.duration_hours !== undefined ? Math.max(0.5, Number(body.duration_hours)) : null;
-  json(res, 200, { appointment: service.rescheduleAppointment(artist, v.int(params.id, 'id'), startsAt, hours) });
+  json(res, 200, { appointment: await service.rescheduleAppointment(artist, v.int(params.id, 'id'), startsAt, hours) });
 });
 
 api.post('/api/appointments/:id/cancel', async (req, res, { params }) => {
-  const artist = requireArtist(req);
+  const artist = await requireArtist(req);
   const body = await readJson(req);
   json(res, 200, {
-    appointment: service.cancelAppointment(artist, v.int(params.id, 'id'), {
+    appointment: await service.cancelAppointment(artist, v.int(params.id, 'id'), {
       refundDeposit: v.bool(body.refund_deposit),
       reason: v.str(body.reason, 'reason', { required: false, max: 300 }),
     }),
@@ -280,14 +286,14 @@ api.post('/api/appointments/:id/cancel', async (req, res, { params }) => {
 /* -------------------------------------------------------------------- blocks */
 
 api.get('/api/blocks', async (req, res) => {
-  const artist = requireArtist(req);
-  json(res, 200, { blocks: service.listBlocks(artist.id) });
+  const artist = await requireArtist(req);
+  json(res, 200, { blocks: await service.listBlocks(artist.id) });
 });
 
 api.post('/api/blocks', async (req, res) => {
-  const artist = requireArtist(req);
+  const artist = await requireArtist(req);
   const body = await readJson(req);
-  const block = service.createBlock(
+  const block = await service.createBlock(
     artist,
     v.isoDate(body.starts_at, 'starts_at'),
     v.isoDate(body.ends_at, 'ends_at'),
@@ -297,29 +303,30 @@ api.post('/api/blocks', async (req, res) => {
 });
 
 api.delete('/api/blocks/:id', async (req, res, { params }) => {
-  const artist = requireArtist(req);
-  json(res, 200, service.deleteBlock(artist, v.int(params.id, 'id')));
+  const artist = await requireArtist(req);
+  json(res, 200, await service.deleteBlock(artist, v.int(params.id, 'id')));
 });
 
 /* ------------------------------------------------------------ outbox & stats */
 
 api.get('/api/messages', async (req, res, { url }) => {
-  const artist = requireArtist(req);
+  const artist = await requireArtist(req);
   const pending = url.searchParams.get('pending') === 'true';
-  const rows = getDb().prepare(`
+  const db = await getDb();
+  const rows = await db.all(`
     SELECT * FROM messages WHERE artist_id = ? ${pending ? 'AND sent_at IS NULL' : ''}
     ORDER BY scheduled_for DESC LIMIT 100
-  `).all(artist.id);
+  `, [artist.id]);
   json(res, 200, { messages: rows });
 });
 
 api.post('/api/messages/dispatch', async (req, res) => {
-  requireArtist(req);
-  json(res, 200, { dispatched: dispatchDue() });
+  await requireArtist(req);
+  json(res, 200, { dispatched: await dispatchDue() });
 });
 
 api.get('/api/stats', async (req, res, { url }) => {
-  const artist = requireArtist(req);
+  const artist = await requireArtist(req);
   const days = v.int(url.searchParams.get('days'), 'days', { required: false, min: 1, max: 730, fallback: 90 }) ?? 90;
-  json(res, 200, { stats: service.stats(artist.id, { days }) });
+  json(res, 200, { stats: await service.stats(artist.id, { days }) });
 });

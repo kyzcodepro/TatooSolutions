@@ -27,14 +27,15 @@ brief structuré → estimation automatique → devis + acompte → date bloqué
 ```bash
 npm run seed     # crée le studio de démo « Atelier Noir » et son historique
 npm start        # http://localhost:3000
-npm test         # 29 tests (estimation, parcours API complet, chemin serverless)
+npm test         # 42 tests (estimation, parcours API, serverless, backend libSQL)
 ```
 
 Compte de démonstration : **demo@inkflow.app** / **demotattoo**
 Page publique de démonstration : <http://localhost:3000/b/atelier-noir>
 
-Aucune dépendance à installer : le serveur tourne sur `node:http`, `node:sqlite`
-et `node:crypto`. **Node 22.13+ ou 24.x** (`node:sqlite` n'est utilisable sans
+Le serveur tourne sur `node:http`, `node:sqlite` et `node:crypto`. Une seule
+dépendance, `@libsql/client`, et uniquement si vous branchez une base Turso —
+sans `INKFLOW_DATABASE_URL`, elle n'est jamais chargée. **Node 22.13+ ou 24.x** (`node:sqlite` n'est utilisable sans
 drapeau qu'à partir de 22.13). Volontairement, `package.json` ne contient pas de
 champ `engines` : un pin de version y entre en conflit avec le sélecteur Node de
 Vercel et fait échouer le build — auquel cas la plateforme continue de servir le
@@ -46,7 +47,9 @@ trop ancienne l'application le dit explicitement au démarrage au lieu de plante
 | Variable | Défaut | Rôle |
 | --- | --- | --- |
 | `PORT` | `3000` | Port d'écoute |
-| `INKFLOW_DB` | `data/inkflow.sqlite` | Fichier SQLite (`:memory:` accepté) |
+| `INKFLOW_DB` | `data/inkflow.sqlite` | Fichier SQLite local (`:memory:` accepté) |
+| `INKFLOW_DATABASE_URL` | — | URL libSQL/Turso (`libsql://…`). Dès qu'elle est définie, elle remplace le fichier local |
+| `INKFLOW_DATABASE_TOKEN` | — | Jeton d'authentification Turso, obligatoire avec une URL `libsql://` |
 | `INKFLOW_BASE_URL` | `http://localhost:3000` | URL utilisée dans les liens envoyés aux clients |
 | `INKFLOW_QUIET` | — | `1` coupe l'affichage des messages sortants dans la console |
 | `INKFLOW_DEMO` | `1` en serverless, sinon `0` | Crée le studio de démonstration si la base est vide |
@@ -88,13 +91,13 @@ start.js         point d'entrée serveur : écoute, sans condition
 api/index.js     point d'entrée serverless (+ api/ping.js, sonde inerte)
 src/
   server.js      routage HTTP et pages statiques (bibliothèque, n'écoute pas)
+  db.js          interface de données asynchrone : node:sqlite ou libSQL/Turso
   routes/api.js  endpoints JSON (auth, public, boîte artiste, agenda, stats)
   service.js     règles métier : devis, acompte, agenda, no-show, statistiques
   pricing.js     moteur d'estimation (pur, testé isolément)
   messages.js    file d'envoi : confirmations, rappels, cicatrisation
   payments.js    interface de paiement (mock ; Stripe se branche ici)
   auth.js        PBKDF2 + sessions en cookie HttpOnly
-  db.js          schéma SQLite et migrations
 public/          landing, connexion, tableau de bord, page de réservation, page de devis
 test/            tests d'estimation et parcours API de bout en bout
 ```
@@ -216,19 +219,49 @@ Le planificateur ne peut pas tourner en tâche de fond dans une fonction : en mo
 serverless, les messages dus sont envoyés à l'occasion du trafic (une passe par
 minute et par instance au maximum). Sans visiteurs, les rappels attendent.
 
-### Déploiement durable
+### Base durable : Turso
 
-Deux chemins, au choix :
+`src/db.js` expose une interface asynchrone unique avec deux implémentations :
+`node:sqlite` sur un fichier local, et libSQL/Turso par le réseau. Aucune autre
+partie du code ne sait laquelle répond.
 
-1. **Garder SQLite et une vraie machine** — Railway, Fly.io, Render ou un VPS :
-   `npm start` avec un disque persistant monté sur `data/`. C'est le mode pour
-   lequel l'application est écrite (processus long, planificateur à la minute) et
-   c'est le moins de travail.
-2. **Rester sur Vercel avec une base gérée** — remplacer `src/db.js` par un client
-   Turso/libSQL (dialecte SQLite, le schéma est repris tel quel) ou Neon/Postgres.
-   Le reste du code passe par `getDb()`, la bascule est donc contenue dans ce fichier
-   et dans les appels `prepare/run/get/all`. Prévoir aussi un Vercel Cron qui appelle
-   `/api/messages/dispatch` pour que les rappels partent sans dépendre du trafic.
+```bash
+turso db create inkflow                 # une fois
+turso db show inkflow --url             # → libsql://inkflow-<vous>.turso.io
+turso db tokens create inkflow          # → le jeton
+```
+
+Puis, en variables d'environnement (Vercel → Settings → Environment Variables) :
+
+```
+INKFLOW_DATABASE_URL   = libsql://inkflow-<vous>.turso.io
+INKFLOW_DATABASE_TOKEN = <le jeton>
+INKFLOW_SECRET         = <une longue chaîne aléatoire>
+INKFLOW_BASE_URL       = https://<votre-domaine>
+```
+
+Le schéma est créé au premier démarrage. Pour peupler la base de démonstration :
+
+```bash
+INKFLOW_DATABASE_URL=… INKFLOW_DATABASE_TOKEN=… npm run seed
+```
+
+`GET /api/health` indique alors `"backend": "turso"` et `"ephemeral": false`.
+Prévoir aussi un Vercel Cron qui appelle `/api/messages/dispatch` pour que les
+rappels partent sans dépendre du trafic.
+
+**Ce qui est vérifié et ce qui ne l'est pas.** `test/turso.test.js` fait tourner
+tout le parcours sur le client libSQL (même client, URL `file:`) : liaison des
+paramètres, forme des lignes, identifiants renvoyés par une écriture, et
+relecture après fermeture puis réouverture de la connexion. Le trajet réseau vers
+Turso, lui, n'est pas testé ici — il n'y a pas de credentials dans ce dépôt, et
+un test qui passerait sans les avoir ne prouverait rien.
+
+### Autre chemin : une machine avec un disque
+
+Railway, Fly.io, Render ou un VPS : `npm start` avec un disque persistant monté
+sur `data/`. Le processus est long, le planificateur tourne à la minute, et il
+n'y a rien à configurer de plus.
 
 Variables utiles au déploiement : `INKFLOW_DB` (chemin de la base),
 `INKFLOW_BASE_URL` (liens envoyés aux clients), `INKFLOW_DEMO=0` (désactive la

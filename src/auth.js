@@ -88,14 +88,15 @@ export function readSessionToken(token) {
   return claims;
 }
 
-export function currentArtist(req) {
+export async function currentArtist(req) {
   const claims = readSessionToken(parseCookies(req)[SESSION_COOKIE]);
   if (!claims) return null;
-  return getDb().prepare('SELECT * FROM artists WHERE id = ?').get(claims.aid) ?? null;
+  const db = await getDb();
+  return db.get('SELECT * FROM artists WHERE id = ?', [claims.aid]);
 }
 
-export function requireArtist(req) {
-  const artist = currentArtist(req);
+export async function requireArtist(req) {
+  const artist = await currentArtist(req);
   if (!artist) throw unauthorized();
   return artist;
 }
