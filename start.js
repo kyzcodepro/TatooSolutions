@@ -1,0 +1,30 @@
+// Server entry point. Its only job is to listen, unconditionally.
+//
+// It used to be a `import.meta.url === process.argv[1]` check inside
+// src/server.js. That check is a guess about how the process was launched, and it
+// guesses wrong as soon as a platform bundles or imports the app instead of
+// running the file directly — the server then never listens, and the platform
+// reports a crash with nothing in it. A dedicated entry point cannot guess wrong:
+// whatever imports or runs this file gets a listening server.
+import { createApp, handleRequest } from './src/server.js';
+import { dispatchDue } from './src/messages.js';
+
+const port = Number(process.env.PORT) || 3000;
+const server = createApp();
+
+server.listen(port, () => {
+  console.log(`Inkflow running on http://localhost:${port}`);
+});
+
+// Reminders and aftercare go out from here; one tick a minute is plenty.
+const timer = setInterval(() => {
+  try {
+    dispatchDue();
+  } catch (err) {
+    console.error('[scheduler]', err);
+  }
+}, 60000);
+timer.unref();
+
+export default handleRequest;
+export { server };

@@ -77,8 +77,10 @@ les projets hors budget avant d'y passer une heure.
 ## Architecture
 
 ```
+start.js         point d'entrée serveur : écoute, sans condition
+api/index.js     point d'entrée serverless (+ api/ping.js, sonde inerte)
 src/
-  server.js      routage HTTP, pages statiques, tick du planificateur
+  server.js      routage HTTP et pages statiques (bibliothèque, n'écoute pas)
   routes/api.js  endpoints JSON (auth, public, boîte artiste, agenda, stats)
   service.js     règles métier : devis, acompte, agenda, no-show, statistiques
   pricing.js     moteur d'estimation (pur, testé isolément)
@@ -142,8 +144,15 @@ Deux réglages à ne pas rater à la création du projet :
 
 #### Vérifier un déploiement en trois URL
 
+Commencez toujours par `/deploy-check.txt` : ce fichier statique est servi par le
+CDN, sans faire tourner la moindre fonction. **404 = le commit n'est pas déployé**
+(build en échec, mauvaise branche de production, ou autre projet) et le problème
+est dans les logs de build, pas dans le code. 200 = le code est bien en ligne, et
+les deux URL suivantes disent ce qu'il fait.
+
 | URL | Réponse attendue | Ce que dit une autre réponse |
 | --- | --- | --- |
+| `/deploy-check.txt` | le marqueur de déploiement | 404 : ce commit n'est pas en production |
 | `/api/ping` | `{"probe":"function"}` ou `{"probe":"app"}` avec le commit déployé | Ni l'un ni l'autre : Vercel ne construit pas `api/` — vérifier Framework Preset (« Other ») et Root Directory du projet |
 | `/api/health` | `status: ok`, version de Node, base utilisée | Rapport d'erreur JSON : l'application démarre mal, le message dit pourquoi |
 | `/b/atelier-noir` | La page de réservation du studio de démonstration | 500 : voir `/api/health` |

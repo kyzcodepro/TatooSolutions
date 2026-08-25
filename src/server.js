@@ -1,3 +1,5 @@
+// Library only: nothing here listens. start.js is the server entry point and
+// api/index.js the serverless one, so importing this module has no side effects.
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
@@ -124,22 +126,4 @@ export function createApp() {
     if (!res.headersSent) json(res, 500, { error: 'Internal server error', detail: err.message });
     else res.end();
   }));
-}
-
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) {
-  const port = Number(process.env.PORT) || 3000;
-  const server = createApp();
-  server.listen(port, () => {
-    console.log(`Inkflow running on http://localhost:${port}`);
-  });
-  // Reminders and aftercare go out from here; one tick a minute is plenty.
-  const timer = setInterval(() => {
-    try {
-      dispatchDue();
-    } catch (err) {
-      console.error('[scheduler]', err);
-    }
-  }, 60000);
-  timer.unref();
 }

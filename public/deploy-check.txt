@@ -1,0 +1,3 @@
+Inkflow deployment marker.
+If this file is reachable, the static output of this commit is live.
+It is served by the CDN and does not depend on any function running.

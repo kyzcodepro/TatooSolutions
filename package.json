@@ -5,14 +5,13 @@
   "description": "Inkflow — booking, deposits and no-show protection for tattoo artists",
   "type": "module",
   "engines": {
-    "node": "22.x"
+    "node": ">=22.13"
   },
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
+    "start": "node start.js",
+    "dev": "node --watch start.js",
     "seed": "node src/seed.js",
-    "test": "node --test test/*.test.js",
-    "vercel-build": "echo \"no build step\""
+    "test": "node --test test/*.test.js"
   },
-  "main": "src/server.js"
+  "main": "start.js"
 }
