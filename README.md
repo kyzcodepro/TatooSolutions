@@ -169,10 +169,12 @@ fonctionnent ; le champ `commit` indique quel commit est réellement en ligne.
 
 #### Si la fonction renvoie une erreur
 
-`api/index.js` n'importe l'application qu'à l'intérieur du handler. Toute panne au
-chargement (built-in manquant, disque non inscriptible, bundle incomplet) renvoie
-donc un rapport JSON exploitable — au lieu de la page `FUNCTION_INVOCATION_FAILED`
-qui n'explique rien :
+Rien n'est ouvert pendant le démarrage : le serveur écoute d'abord, la base est
+créée à la première requête. Un processus qui meurt au boot ne peut rien dire —
+la plateforme affiche une page de crash vide — alors qu'un serveur qui écoute peut
+répondre la raison. Toute panne (built-in manquant, disque non inscriptible,
+bundle incomplet) renvoie donc un rapport JSON exploitable, sur chaque requête et
+dans les deux modes de déploiement, au lieu de `FUNCTION_INVOCATION_FAILED` :
 
 ```json
 {

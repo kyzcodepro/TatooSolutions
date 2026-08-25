@@ -10,10 +10,19 @@ import { createApp, handleRequest } from './src/server.js';
 import { dispatchDue } from './src/messages.js';
 
 const port = Number(process.env.PORT) || 3000;
+
+// Listen first, set up the database on the first request. If the database cannot
+// be opened, the platform then gets a running server that explains the problem,
+// instead of a process that exited during boot with nothing to show for it.
 const server = createApp();
 
 server.listen(port, () => {
   console.log(`Inkflow running on http://localhost:${port}`);
+});
+
+server.on('error', (err) => {
+  console.error('[fatal] listen', err);
+  process.exitCode = 1;
 });
 
 // Reminders and aftercare go out from here; one tick a minute is plenty.

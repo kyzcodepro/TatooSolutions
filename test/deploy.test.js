@@ -134,3 +134,43 @@ test('the application router answers the same probe with its own marker', async 
   assert.equal(res.status, 200);
   assert.equal((await res.json()).probe, 'app');
 });
+
+test('a server whose database cannot open still listens and says why', async () => {
+  // The failure this reproduces: the process used to open the database during
+  // boot, so any storage problem killed it before it could listen and the
+  // platform reported an empty crash page.
+  const { spawn } = await import('node:child_process');
+  const port = 3400 + Math.floor(Math.random() * 500);
+  const child = spawn(process.execPath, ['start.js'], {
+    cwd: new URL('..', import.meta.url).pathname,
+    env: {
+      ...process.env,
+      PORT: String(port),
+      INKFLOW_DB: '/dev/null/inkflow/db.sqlite', // cannot be created: ENOTDIR
+      INKFLOW_QUIET: '1',
+    },
+    stdio: 'ignore',
+  });
+
+  try {
+    let res = null;
+    for (let attempt = 0; attempt < 40 && !res; attempt++) {
+      res = await fetch(`http://127.0.0.1:${port}/`).catch(() => null);
+      if (!res) await new Promise((done) => setTimeout(done, 100));
+    }
+    assert.ok(res, 'the server accepted a connection despite the broken database');
+    assert.equal(res.status, 500);
+
+    const report = await res.json();
+    assert.equal(report.error.code, 'ENOTDIR');
+    assert.equal(report.runtime.node, process.version);
+    assert.equal(report.checks.node_sqlite, 'ok');
+
+    // Still reported on the next request, not swallowed after the first one.
+    const again = await fetch(`http://127.0.0.1:${port}/`);
+    assert.equal(again.status, 500);
+    assert.equal(child.exitCode, null, 'the process stayed alive');
+  } finally {
+    child.kill();
+  }
+});

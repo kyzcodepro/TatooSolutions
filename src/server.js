@@ -9,6 +9,7 @@ import { api } from './routes/api.js';
 import { getDb, isServerless, isEphemeral } from './db.js';
 import { dispatchDue } from './messages.js';
 import { seedIfEmpty } from './seed.js';
+import { renderDiagnostics } from './diagnostics.js';
 
 const ROOT = resolve(fileURLToPath(new URL('../', import.meta.url)));
 const PUBLIC_DIR = join(ROOT, 'public');
@@ -65,7 +66,9 @@ let booted = false;
  */
 export function bootstrap() {
   if (booted) return;
-  booted = true;
+  // Only mark the instance as booted once this actually succeeded, otherwise the
+  // failure is reported on the first request and silently forgotten afterwards —
+  // leaving a site that serves pages on top of an application that cannot work.
   getDb();
   const demo = process.env.INKFLOW_DEMO ?? (isServerless() ? '1' : '0');
   if (demo === '1') {
@@ -78,6 +81,7 @@ export function bootstrap() {
   if (isEphemeral()) {
     console.warn('[db] running on an ephemeral database: bookings are lost on the next cold start');
   }
+  booted = true;
 }
 
 // Serverless has no long-running timer, so reminders are flushed opportunistically
@@ -94,13 +98,21 @@ function dispatchOnTraffic() {
 }
 
 /**
- * Node-style handler, shared by the local server and the serverless entry point.
- * A bootstrap failure (no database, unwritable disk, missing built-in) is left to
- * propagate: the serverless entry point turns it into a diagnostics response, and
- * createApp() below keeps a local process alive.
+ * Node-style handler, shared by the server and the serverless entry point.
+ *
+ * Bootstrap runs here rather than at construction time, and its failures are
+ * rendered instead of thrown. A platform that runs this app as a server reports
+ * a process that dies during boot as an empty crash page, so the database is set
+ * up on the first request: the listener is already accepting connections and can
+ * answer with the reason.
  */
 export async function handleRequest(req, res) {
-  bootstrap();
+  try {
+    bootstrap();
+  } catch (err) {
+    console.error('[fatal] bootstrap', err);
+    return renderDiagnostics(res, err);
+  }
   if (isServerless()) dispatchOnTraffic();
   const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`);
   try {
@@ -119,8 +131,8 @@ export async function handleRequest(req, res) {
   }
 }
 
+/** Builds the HTTP server. Deliberately does no I/O: it must never fail to listen. */
 export function createApp() {
-  bootstrap();
   return createServer((req, res) => handleRequest(req, res).catch((err) => {
     console.error('[fatal]', err);
     if (!res.headersSent) json(res, 500, { error: 'Internal server error', detail: err.message });
