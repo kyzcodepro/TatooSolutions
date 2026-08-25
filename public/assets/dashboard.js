@@ -106,7 +106,9 @@ async function loadRequests() {
   const { requests } = await api('GET', `/api/requests${query}`);
   const list = filter === 'open' ? requests.filter((r) => r.status === 'new' || r.status === 'quoted') : requests;
 
-  el('inbox-count').textContent = requests.filter((r) => r.status === 'new').length || '';
+  const waiting = requests.filter((r) => r.status === 'new').length;
+  el('inbox-count').textContent = waiting || '';
+  el('inbox-count').classList.toggle('hidden', waiting === 0);
   el('requests').innerHTML = list.length
     ? list.map(requestCard).join('')
     : '<div class="empty">Rien ici. Partagez votre lien de réservation pour remplir cette boîte.</div>';
@@ -124,7 +126,7 @@ function requestCard(request) {
   const budget = request.budget_cents;
   const tooLow = budget && budget < request.estimate_low_cents;
   return `
-    <article class="item">
+    <article class="item${request.status === 'new' ? ' item-live' : ''}">
       <div class="row-between">
         <div>
           <div class="item-title">${esc(request.client_name)} — ${esc(request.description.slice(0, 80))}${request.description.length > 80 ? '…' : ''}</div>

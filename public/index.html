@@ -13,61 +13,109 @@
   <div class="wrap">
     <a class="brand" href="/"><span class="brand-mark">IF</span> Inkflow</a>
     <nav class="nav">
-      <a href="#probleme">Le problème</a>
-      <a href="#produit">Le produit</a>
-      <a href="#tarifs">Tarifs</a>
+      <span class="nav-sections">
+        <a href="#probleme">Le problème</a>
+        <a href="#produit">Le produit</a>
+        <a href="#tarifs">Tarifs</a>
+      </span>
       <a class="btn btn-sm" href="/login">Ouvrir mon studio</a>
     </nav>
   </div>
 </header>
 
 <main>
-  <div class="wrap hero">
-    <div class="hero-grid">
-      <div>
-        <span class="eyebrow">● Pour les tatoueurs et les studios</span>
-        <h1>Vos clients réservent.<br>Ils ne se volatilisent plus.</h1>
-        <p class="lede">
-          Une page de réservation à votre nom, un brief qui pose les bonnes questions,
-          une fourchette de prix calculée automatiquement et un acompte encaissé avant
-          que la date soit bloquée. Le no-show devient un problème de comptabilité, plus de planning.
-        </p>
-        <div class="row" style="margin-top:1.6rem">
-          <a class="btn" href="/login">Créer mon studio — gratuit</a>
-          <a class="btn btn-ghost" href="/b/atelier-noir">Voir une page de réservation</a>
-        </div>
-        <p class="hint" style="margin-top:1rem">Aucune carte bancaire. Votre lien est prêt en 2 minutes.</p>
-      </div>
+  <section style="position:relative;overflow:hidden">
+    <div class="bleed bleed-a"></div>
+    <div class="bleed bleed-b"></div>
+    <div class="grain"></div>
 
-      <div class="preview" aria-hidden="true">
-        <div class="preview-head">
-          <span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-dot"></span>
+    <div class="wrap hero" style="position:relative;z-index:1">
+      <div class="hero-grid">
+        <div>
+          <span class="eyebrow">● Pour les tatoueurs et les studios</span>
+          <h1 class="display" style="margin-top:1rem">
+            <span class="reveal-line"><span>Vos clients</span></span>
+            <span class="reveal-line"><span>réservent.</span></span>
+            <span class="reveal-line"><span style="color:var(--accent)">Et ils viennent.</span></span>
+          </h1>
+          <p class="lede rise-in" style="animation-delay:.24s">
+            Une page de réservation à votre nom, un brief qui pose les bonnes questions,
+            une fourchette de prix calculée à la volée — et un acompte encaissé avant
+            que la date soit bloquée.
+          </p>
+          <div class="row rise-in" style="margin-top:1.8rem;animation-delay:.32s">
+            <a class="btn tap" href="/login">Créer mon studio</a>
+            <a class="btn btn-ghost tap" href="/b/atelier-noir">Voir une page de réservation →</a>
+          </div>
+          <div class="facts rise-in" style="margin-top:2.8rem;animation-delay:.4s">
+            <div class="fact"><b>30 %</b><span>d'acompte, réglable</span></div>
+            <div class="fact"><b>48 h</b><span>d'annulation libre</span></div>
+            <div class="fact"><b>0</b><span>DM pour un devis</span></div>
+          </div>
         </div>
-        <div class="preview-body">
-          <div class="stats">
-            <div class="stat"><div class="label">Acomptes bloqués</div><div class="value">1 240 €</div></div>
-            <div class="stat"><div class="label">No-shows</div><div class="value" style="color:var(--ok)">0 %</div></div>
+
+        <div class="ink-frame">
+          <svg class="frame-border" viewBox="0 0 560 640" aria-hidden="true">
+            <rect x="0.5" y="0.5" width="559" height="639" rx="18"></rect>
+          </svg>
+
+          <svg class="ink" viewBox="0 0 560 640" role="img" aria-label="Serpent enroulé autour d'une pivoine, tracé au trait">
+            <g transform="translate(4 0)">
+              <g class="d1">
+                <g transform="rotate(0 274 300)"><path class="petal d1" d="M274 300 C 238 266 226 210 274 172 C 322 210 310 266 274 300 Z"></path></g>
+                <g transform="rotate(72 274 300)"><path class="petal d1" d="M274 300 C 238 266 226 210 274 172 C 322 210 310 266 274 300 Z"></path></g>
+                <g transform="rotate(144 274 300)"><path class="petal d2" d="M274 300 C 238 266 226 210 274 172 C 322 210 310 266 274 300 Z"></path></g>
+                <g transform="rotate(216 274 300)"><path class="petal d2" d="M274 300 C 238 266 226 210 274 172 C 322 210 310 266 274 300 Z"></path></g>
+                <g transform="rotate(288 274 300)"><path class="petal d3" d="M274 300 C 238 266 226 210 274 172 C 322 210 310 266 274 300 Z"></path></g>
+              </g>
+              <g class="d3">
+                <g transform="rotate(36 274 300)"><path class="petal d3" d="M274 300 C 253 279 247 244 274 220 C 301 244 295 279 274 300 Z"></path></g>
+                <g transform="rotate(108 274 300)"><path class="petal d4" d="M274 300 C 253 279 247 244 274 220 C 301 244 295 279 274 300 Z"></path></g>
+                <g transform="rotate(180 274 300)"><path class="petal d4" d="M274 300 C 253 279 247 244 274 220 C 301 244 295 279 274 300 Z"></path></g>
+                <g transform="rotate(252 274 300)"><path class="petal d5" d="M274 300 C 253 279 247 244 274 220 C 301 244 295 279 274 300 Z"></path></g>
+                <g transform="rotate(324 274 300)"><path class="petal d5" d="M274 300 C 253 279 247 244 274 220 C 301 244 295 279 274 300 Z"></path></g>
+              </g>
+              <path class="d2" d="M274 300 m -13 0 a 13 13 0 1 0 26 0 a 13 13 0 1 0 -26 0"></path>
+
+              <path class="snake d1" d="M 78 566 C 140 520 108 428 182 398 C 262 364 348 420 416 372 C 486 322 466 216 398 182 C 340 152 280 182 274 232"></path>
+              <path class="snake d3" d="M 96 578 C 158 534 126 442 198 412 C 276 380 360 434 428 388 C 502 336 482 210 408 172 C 344 140 274 172 266 226"></path>
+              <path class="d4" d="M 274 232 C 258 236 250 250 254 264 C 258 278 274 284 286 276"></path>
+              <path class="d4" d="M 286 276 l 14 10 m -14 -10 l 16 -2"></path>
+              <circle class="mark d5" cx="268" cy="248" r="2.6"></circle>
+
+              <path class="d5" d="M 128 496 C 96 470 92 436 118 414 C 146 436 148 470 128 496 Z"></path>
+              <path class="d6" d="M 420 500 C 452 476 460 442 436 418 C 408 440 402 476 420 500 Z"></path>
+              <circle class="mark d6" cx="180" cy="120" r="3"></circle>
+              <circle class="mark d6" cx="452" cy="128" r="4.5"></circle>
+              <circle class="mark d5" cx="120" cy="264" r="2.4"></circle>
+            </g>
+          </svg>
+
+          <div class="needle"></div>
+
+          <svg class="ink-badge" viewBox="0 0 132 132" aria-hidden="true">
+            <defs><path id="badgeCircle" d="M66 12 a54 54 0 1 1 -0.1 0"></path></defs>
+            <text><textPath href="#badgeCircle">acompte encaissé · date bloquée · </textPath></text>
+          </svg>
+
+          <div class="ink-quote rise-in" style="animation-delay:.6s">
+            <div class="label" style="font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)">Estimation en direct</div>
+            <div class="display" style="font-size:1.8rem;margin-top:.2rem">650 € – 830 €</div>
+            <div class="muted" style="font-size:.84rem;margin-top:.3rem">≈ 6 h · acompte 195 €</div>
           </div>
-          <div class="item">
-            <div class="row-between">
-              <span class="item-title">Camille — serpent &amp; pivoine</span>
-              <span class="badge badge-new">Nouvelle</span>
-            </div>
-            <div class="meta"><span>18 cm · avant-bras · noir &amp; gris</span><span><b>650 – 830 €</b></span></div>
-          </div>
-          <div class="item">
-            <div class="row-between">
-              <span class="item-title">Yanis — lettrage nuque</span>
-              <span class="badge badge-booked">Réservé</span>
-            </div>
-            <div class="meta"><span>Acompte 90 € encaissé</span><span>sam. 14 mars, 10:00</span></div>
-          </div>
-          <div class="bar bar-accent" style="width:70%"></div>
-          <div class="bar" style="width:45%"></div>
         </div>
       </div>
     </div>
-  </div>
+
+    <div class="wrap row-between" style="position:relative;z-index:1;padding:1.6rem 0 2.6rem;border-top:1px solid var(--line);margin-top:3rem">
+      <div class="assur">
+        <div><svg width="19" height="19" viewBox="0 0 19 19" aria-hidden="true"><path d="M4 10l4 4 7-8"></path></svg>Paiement de l'acompte sécurisé</div>
+        <div><svg width="19" height="19" viewBox="0 0 19 19" aria-hidden="true"><path d="M4 10l4 4 7-8"></path></svg>Annulation libre jusqu'à 48 h avant</div>
+        <div><svg width="19" height="19" viewBox="0 0 19 19" aria-hidden="true"><path d="M4 10l4 4 7-8"></path></svg>Conditions affichées avant de payer</div>
+      </div>
+      <span class="faint" style="font-size:.84rem">Aucune carte bancaire pour créer votre studio</span>
+    </div>
+  </section>
 
   <section id="probleme" class="wrap section">
     <div class="section-head">

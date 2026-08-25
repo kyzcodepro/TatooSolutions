@@ -31,6 +31,7 @@ async function init() {
     return;
   }
   el('content').classList.remove('hidden');
+  el('content-foot').classList.remove('hidden');
   wireForm();
   refreshEstimate();
 }
@@ -94,6 +95,7 @@ async function runEstimate() {
     el('estimate-detail').textContent =
       `≈ ${estimate.hours} h de travail · ${estimate.sessions} séance${estimate.sessions > 1 ? 's' : ''}`;
     el('estimate-deposit').textContent = money(estimate.deposit_cents, currency);
+    pulseEstimate();
 
     const warning = el('budget-warning');
     if (!estimate.budget_realistic) {
@@ -106,6 +108,18 @@ async function runEstimate() {
   } catch (err) {
     el('estimate-detail').textContent = err.message;
   }
+}
+
+// A brief sweep when the amount is recomputed: enough to notice, not enough to distract.
+let pulseTimer = null;
+function pulseEstimate() {
+  const card = document.querySelector('.estimate-card');
+  if (!card) return;
+  card.classList.remove('refreshing');
+  void card.offsetWidth; // restart the animation
+  card.classList.add('refreshing');
+  clearTimeout(pulseTimer);
+  pulseTimer = setTimeout(() => card.classList.remove('refreshing'), 1000);
 }
 
 const budgetCents = () => {
@@ -140,6 +154,7 @@ async function submitBrief(event) {
   try {
     const data = await api('POST', `/api/public/artists/${encodeURIComponent(slug)}/requests`, payload);
     el('content').classList.add('hidden');
+    el('content-foot').classList.add('hidden');
     el('sent').classList.remove('hidden');
     el('sent-text').textContent =
       `${artist.studio_name} a reçu votre projet. Estimation retenue : `

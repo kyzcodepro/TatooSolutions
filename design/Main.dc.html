@@ -57,12 +57,12 @@
       font-size: 72px; line-height: 0.96; letter-spacing: -0.035em; margin: 26px 0 0; }
     .line { display: block; overflow: hidden; padding-bottom: 4px; }
     .line > span { display: block; transform: translateY(112%);
-      animation: rise 1s cubic-bezier(0.16, 0.9, 0.24, 1) forwards; }
-    .line:nth-child(2) > span { animation-delay: 0.12s; }
-    .line:nth-child(3) > span { animation-delay: 0.24s; }
+      animation: rise 0.62s cubic-bezier(0.16, 0.9, 0.24, 1) forwards; }
+    .line:nth-child(2) > span { animation-delay: 0.07s; }
+    .line:nth-child(3) > span { animation-delay: 0.14s; }
     @keyframes rise { to { transform: translateY(0); } }
 
-    .fade-up { opacity: 0; transform: translateY(16px); animation: fadeUp 0.9s ease forwards; }
+    .fade-up { opacity: 0; transform: translateY(16px); animation: fadeUp 0.55s ease forwards; }
     @keyframes fadeUp { to { opacity: 1; transform: none; } }
 
     .lede { max-width: 30rem; margin: 26px 0 0; color: #9aa1b0; font-size: 18px; line-height: 1.6;
@@ -104,29 +104,29 @@
     .ink { position: absolute; inset: 0; }
     .ink path, .ink circle.mark { fill: none; stroke: #eceef2; stroke-width: 2;
       stroke-linecap: round; stroke-linejoin: round;
-      stroke-dasharray: 2200; stroke-dashoffset: 2200; animation: draw 16s ease-in-out infinite; }
+      stroke-dasharray: 2200; stroke-dashoffset: 2200; animation: draw 12s ease-in-out infinite; }
     .ink .petal { stroke: color-mix(in oklab, var(--accent) 80%, #eceef2); }
     .ink .snake { stroke-width: 2.6; }
     @keyframes draw {
-      0% { stroke-dashoffset: 2200; opacity: 0.12; }
-      26% { stroke-dashoffset: 0; opacity: 1; }
-      88% { stroke-dashoffset: 0; opacity: 1; }
-      100% { stroke-dashoffset: 0; opacity: 0.12; }
+      0% { stroke-dashoffset: 2200; opacity: 0.15; }
+      16% { stroke-dashoffset: 0; opacity: 1; }
+      90% { stroke-dashoffset: 0; opacity: 1; }
+      100% { stroke-dashoffset: 0; opacity: 0.15; }
     }
-    .ink .d1 { animation-delay: 0.2s; } .ink .d2 { animation-delay: 0.5s; }
-    .ink .d3 { animation-delay: 0.8s; } .ink .d4 { animation-delay: 1.1s; }
-    .ink .d5 { animation-delay: 1.4s; } .ink .d6 { animation-delay: 1.7s; }
+    .ink .d1 { animation-delay: 0.05s; } .ink .d2 { animation-delay: 0.16s; }
+    .ink .d3 { animation-delay: 0.27s; } .ink .d4 { animation-delay: 0.38s; }
+    .ink .d5 { animation-delay: 0.49s; } .ink .d6 { animation-delay: 0.6s; }
 
     /* The needle rides the line it is laying down. */
     .needle { position: absolute; top: 0; left: 0; width: 9px; height: 9px; border-radius: 50%;
       background: var(--accent); box-shadow: 0 0 16px 4px color-mix(in oklab, var(--accent) 60%, transparent);
       offset-path: path("M 78 566 C 140 520 108 428 182 398 C 262 364 348 420 416 372 C 486 322 466 216 398 182 C 340 152 280 182 274 232");
-      offset-distance: 0%; animation: travel 16s ease-in-out infinite; }
+      offset-distance: 0%; animation: travel 12s ease-in-out infinite; }
     @keyframes travel {
       0% { offset-distance: 0%; opacity: 0; }
-      4% { opacity: 1; }
-      26% { offset-distance: 100%; opacity: 1; }
-      34% { opacity: 0; } 100% { offset-distance: 100%; opacity: 0; }
+      3% { opacity: 1; }
+      16% { offset-distance: 100%; opacity: 1; }
+      24% { opacity: 0; } 100% { offset-distance: 100%; opacity: 0; }
     }
 
     .badge { position: absolute; left: -46px; top: 34px; width: 132px; height: 132px;
@@ -257,7 +257,6 @@
 
           <path class="d5" d="M 128 496 C 96 470 92 436 118 414 C 146 436 148 470 128 496 Z"></path>
           <path class="d6" d="M 420 500 C 452 476 460 442 436 418 C 408 440 402 476 420 500 Z"></path>
-          <path class="d6" d="M 158 596 h 244"></path>
           <circle class="mark d6" cx="180" cy="120" r="3"></circle>
           <circle class="mark d6" cx="452" cy="128" r="4.5"></circle>
           <circle class="mark d5" cx="120" cy="264" r="2.4"></circle>
@@ -270,7 +269,7 @@
         <defs>
           <path id="badgeCircle" d="M66 12 a54 54 0 1 1 -0.1 0"></path>
         </defs>
-        <text><textPath href="#badgeCircle">acompte encaissé · date bloquée · acompte encaissé · </textPath></text>
+        <text><textPath href="#badgeCircle">acompte encaissé · date bloquée · </textPath></text>
       </svg>
 
       <div class="quote-card fade-up">
