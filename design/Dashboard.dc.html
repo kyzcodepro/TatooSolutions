@@ -1,0 +1,241 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=Space+Grotesk:wght@300;400;500&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #ff5c39; text-decoration: none; }
+    a:hover { color: #ff8163; }
+
+    .stage { position: relative; width: 1440px; height: 980px; overflow: hidden;
+      background: #0c0d10; color: #eceef2;
+      font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif; font-size: 15px; }
+
+    .top { display: flex; align-items: center; justify-content: space-between; height: 68px;
+      padding: 0 44px; border-bottom: 1px solid #23262e; }
+    .brand { display: flex; align-items: center; gap: 11px; font-family: Syne, sans-serif;
+      font-weight: 800; font-size: 17px; letter-spacing: -0.03em; }
+    .who { display: flex; align-items: center; gap: 14px; color: #9aa1b0; font-size: 14px; }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; background: #23262e; display: grid;
+      place-items: center; font-size: 13px; color: #eceef2; }
+
+    .head { display: flex; align-items: center; justify-content: space-between; padding: 24px 44px 0; }
+    .head h1 { font-family: Syne, sans-serif; font-size: 26px; letter-spacing: -0.03em; margin: 0; }
+    .head p { color: #9aa1b0; font-size: 14px; margin: 4px 0 0; }
+    .linkbox { display: flex; align-items: center; gap: 10px; background: #0f1116; border: 1px solid #333844;
+      border-radius: 9px; padding: 7px 7px 7px 15px; }
+    .linkbox code { color: #9aa1b0; font-size: 13.5px; }
+    .btn { min-height: 38px; display: inline-flex; align-items: center; padding: 0 15px; border-radius: 8px;
+      background: var(--accent); color: #180a05; font-size: 14px; font-weight: 500; }
+    .btn.quiet { background: transparent; border: 1px solid #333844; color: #eceef2; }
+
+    .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding: 22px 44px 0; }
+    .tile { background: #14161b; border: 1px solid #23262e; border-radius: 14px; padding: 17px 19px;
+      opacity: 0; transform: translateY(12px); animation: up 0.65s cubic-bezier(0.16, 0.9, 0.24, 1) forwards; }
+    .tile:nth-child(2) { animation-delay: 0.08s; } .tile:nth-child(3) { animation-delay: 0.16s; }
+    .tile:nth-child(4) { animation-delay: 0.24s; }
+    @keyframes up { to { opacity: 1; transform: none; } }
+    .tile .lbl { font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase; color: #6b7280; }
+    .tile .val { font-family: Syne, sans-serif; font-size: 30px; letter-spacing: -0.03em; margin-top: 3px;
+      font-variant-numeric: tabular-nums; }
+    .tile .sub { color: #9aa1b0; font-size: 13px; }
+    .spark { margin-top: 8px; height: 26px; width: 100%; }
+    .spark path { fill: none; stroke: #3ddc97; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+      stroke-dasharray: 300; stroke-dashoffset: 300; animation: draw 1.4s ease forwards 0.7s; }
+    @keyframes draw { to { stroke-dashoffset: 0; } }
+
+    .tabs { display: flex; gap: 4px; margin: 26px 44px 0; border-bottom: 1px solid #23262e; }
+    .tab { padding: 11px 15px; font-size: 14.5px; color: #9aa1b0; border-bottom: 2px solid transparent; }
+    .tab.on { color: #eceef2; border-bottom-color: var(--accent); }
+    .tab .pill { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px;
+      margin-left: 8px; border-radius: 999px; background: rgba(255, 92, 57, 0.16); color: var(--accent);
+      font-size: 12px; animation: soft 3.4s ease-in-out infinite; }
+    @keyframes soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.62; } }
+
+    .work { display: grid; grid-template-columns: minmax(0, 1fr) 372px; gap: 22px; padding: 20px 44px 0; }
+
+    .item { position: relative; background: #14161b; border: 1px solid #23262e; border-radius: 14px;
+      padding: 17px 20px; opacity: 0; transform: translateY(12px);
+      animation: up 0.65s cubic-bezier(0.16, 0.9, 0.24, 1) forwards 0.3s; }
+    .item + .item { margin-top: 11px; }
+    .item:nth-of-type(2) { animation-delay: 0.38s; } .item:nth-of-type(3) { animation-delay: 0.46s; }
+    .item.live { border-color: #333844; }
+    .item.live::before { content: ""; position: absolute; left: -1px; top: 16px; bottom: 16px; width: 2px;
+      border-radius: 2px; background: var(--accent); }
+    .item-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; }
+    .item .name { font-weight: 500; }
+    .meta { display: flex; flex-wrap: wrap; gap: 6px 18px; color: #9aa1b0; font-size: 13.5px; margin-top: 6px; }
+    .meta b { color: #eceef2; font-weight: 500; }
+    .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px;
+      font-size: 12px; font-weight: 500; white-space: nowrap; }
+    .badge.new { background: rgba(255, 92, 57, 0.16); color: var(--accent); }
+    .badge.quoted { background: rgba(255, 184, 77, 0.15); color: #ffb84d; }
+    .badge.booked { background: rgba(61, 220, 151, 0.14); color: #3ddc97; }
+    .warn { margin-top: 11px; padding: 9px 12px; border-radius: 8px; background: rgba(255, 184, 77, 0.12);
+      color: #ffb84d; font-size: 13px; }
+    .acts { display: flex; gap: 9px; margin-top: 13px; }
+    .acts .btn { min-height: 40px; }
+
+    .aside .panel { background: #14161b; border: 1px solid #23262e; border-radius: 14px; padding: 18px 20px;
+      opacity: 0; transform: translateY(12px); animation: up 0.65s ease forwards 0.42s; }
+    .panel h3 { font-family: Syne, sans-serif; font-size: 16px; margin: 0 0 4px; letter-spacing: -0.02em; }
+    .panel .hint { color: #6b7280; font-size: 13px; margin: 0 0 14px; }
+    .seance { display: flex; gap: 13px; padding: 11px 0; border-top: 1px solid #23262e; }
+    .seance .day { width: 46px; flex: 0 0 auto; text-align: center; }
+    .seance .day b { display: block; font-family: Syne, sans-serif; font-size: 19px; line-height: 1.1; }
+    .seance .day span { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; }
+    .seance .what { font-size: 14px; }
+    .seance .what span { display: block; color: #9aa1b0; font-size: 13px; margin-top: 2px; }
+
+    .motion-calme .tab .pill { animation: none; }
+    @media (prefers-reduced-motion: reduce) {
+      .tile, .item, .panel { animation: none; opacity: 1; transform: none; }
+      .spark path { animation: none; stroke-dashoffset: 0; }
+      .tab .pill { animation: none; }
+    }
+  </style>
+</helmet>
+
+<div class="stage {{motionClass}}" style="--accent: #ff5c39;">
+  <div class="top">
+    <span class="brand">
+      <svg width="26" height="26" viewBox="0 0 30 30" aria-hidden="true">
+        <rect x="0.5" y="0.5" width="29" height="29" rx="9" style="fill: none; stroke: var(--accent);"></rect>
+        <path d="M9 21 L21 9 M17 9 h4 v4" style="fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linecap: round;"></path>
+      </svg>
+      Inkflow
+    </span>
+    <span class="who">demo@atelier-noir.fr <span class="avatar">AN</span></span>
+  </div>
+
+  <div class="head">
+    <div>
+      <h1>Atelier Noir</h1>
+      <p>Votre lien de réservation, à mettre en bio :</p>
+    </div>
+    <div class="linkbox">
+      <code>inkflow.app/b/atelier-noir</code>
+      <span class="btn quiet">Copier</span>
+      <span class="btn">Ouvrir</span>
+    </div>
+  </div>
+
+  <div class="tiles">
+    <div class="tile">
+      <div class="lbl">À répondre</div>
+      <div class="val" style="color: var(--accent);">2</div>
+      <div class="sub">demandes en attente</div>
+    </div>
+    <div class="tile">
+      <div class="lbl">Séances à venir</div>
+      <div class="val">3</div>
+      <div class="sub">17 h réservées</div>
+    </div>
+    <div class="tile">
+      <div class="lbl">Acomptes encaissés</div>
+      <div class="val">455 €</div>
+      <div class="sub">sur les séances à venir</div>
+    </div>
+    <div class="tile">
+      <div class="lbl">Taux de no-show</div>
+      <div class="val" style="color: #3ddc97;">0 %</div>
+      <svg class="spark" viewBox="0 0 160 26" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M2 20 L26 17 L50 19 L74 12 L98 14 L122 7 L146 4"></path>
+      </svg>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <span class="tab on">Demandes <span class="pill">2</span></span>
+    <span class="tab">Agenda</span>
+    <span class="tab">Messages</span>
+    <span class="tab">Réglages</span>
+  </div>
+
+  <div class="work">
+    <div>
+      <div class="item live">
+        <div class="item-top">
+          <div>
+            <div class="name">Sofia Lambert — dragon japonais le long des côtes</div>
+            <div class="meta">
+              <span>30 cm · côtes · noir &amp; gris</span><span>Détaillé</span>
+              <span>Estimation : <b>1 055 € – 1 345 €</b> (9 h)</span>
+              <span>Budget client : <b>400 €</b></span>
+            </div>
+            <div class="warn">Budget 655 € en dessous de votre fourchette basse — à cadrer avant de chiffrer.</div>
+            <div class="acts">
+              <span class="btn">Envoyer un devis</span>
+              <span class="btn quiet">Refuser</span>
+            </div>
+          </div>
+          <span class="badge new">Nouvelle</span>
+        </div>
+      </div>
+
+      <div class="item">
+        <div class="item-top">
+          <div>
+            <div class="name">Marc Delatte — recouvrement d'un tribal, paysage de montagne</div>
+            <div class="meta">
+              <span>25 cm · dos · noir &amp; gris</span><span>Cover-up</span>
+              <span>Devis : <b>1 100 €</b> · acompte 330 €</span>
+              <span>jeu. 10 sept., 09:00 · expire dans 7 jours</span>
+            </div>
+          </div>
+          <span class="badge quoted">Devis envoyé</span>
+        </div>
+      </div>
+
+      <div class="item">
+        <div class="item-top">
+          <div>
+            <div class="name">Camille Roy — serpent et pivoine, avant-bras</div>
+            <div class="meta">
+              <span>18 cm · avant-bras · noir &amp; gris</span>
+              <span><b>620 €</b> dont 185 € d'acompte encaissé</span>
+              <span>jeu. 3 sept., 10:00</span>
+            </div>
+          </div>
+          <span class="badge booked">Réservé</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="aside">
+      <div class="panel">
+        <h3>Prochaines séances</h3>
+        <p class="hint">Rappels envoyés automatiquement à J-7, J-2 et J-1.</p>
+        <div class="seance">
+          <div class="day"><b>03</b><span>sept.</span></div>
+          <div class="what">Camille Roy · 5 h<span>620 € — reste 435 € sur place</span></div>
+        </div>
+        <div class="seance">
+          <div class="day"><b>10</b><span>sept.</span></div>
+          <div class="what">Marc Delatte · 6 h<span>en attente de l'acompte</span></div>
+        </div>
+        <div class="seance">
+          <div class="day"><b>21</b><span>sept.</span></div>
+          <div class="what">Inès Moreau · 1 h 30<span>retouche offerte</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"motion":{"editor":"enum","options":["ample","calme"],"default":"ample","section":"Motion"},"$preview":{"width":1440,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { motionClass: (this.props.motion ?? 'ample') === 'calme' ? 'motion-calme' : 'motion-ample' };
+  }
+}
+</script>
+</body>
+</html>
