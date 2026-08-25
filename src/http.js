@@ -46,6 +46,21 @@ export async function readJson(req) {
   }
 }
 
+/**
+ * The exact bytes received. A webhook signature covers the raw body, so parsing
+ * and re-serialising it would never match — JSON.stringify is not byte-faithful.
+ */
+export async function readRaw(req) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > MAX_BODY) throw bad('Request body too large');
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 export function parseCookies(req) {
   const header = req.headers.cookie;
   if (!header) return {};

@@ -6,7 +6,7 @@ import { randomBytes } from 'node:crypto';
 import { getDb, nowIso } from './db.js';
 import { HttpError, bad, conflict, notFound } from './http.js';
 import { estimate, suggestDeposit, MAX_SESSION_HOURS } from './pricing.js';
-import { createDepositIntent, confirmDeposit } from './payments.js';
+import { startDeposit, paymentsProvider } from './payments.js';
 import {
   queueRequestReceived, queueQuoteSent, queueBookingConfirmed,
   scheduleAppointmentReminders, scheduleAftercare, cancelPendingMessages, queueMessage,
@@ -184,8 +184,13 @@ export async function quoteView(token) {
   };
 }
 
-/** Client accepts the quote and pays the deposit — the moment the slot becomes real. */
-export async function acceptQuote(token) {
+/**
+ * The client accepts the quote. With a real payment provider this only opens a
+ * checkout: the slot is still free afterwards, and stays free until the provider
+ * says the money moved. Booking on the browser's return would let anyone claim a
+ * date by forging a URL.
+ */
+export async function acceptQuote(token, { baseUrl = '', fetchImpl } = {}) {
   const db = await getDb();
   const request = await getRequestByToken(token);
   const artist = await getArtist(request.artist_id);
@@ -199,15 +204,66 @@ export async function acceptQuote(token) {
   if (!request.proposed_start) throw conflict('The artist has not proposed a date yet');
   await assertSlotFree(artist.id, request.proposed_start, request.proposed_end);
 
-  const intent = createDepositIntent({
-    amountCents: request.deposit_cents,
-    currency: artist.currency,
-    reference: `request-${request.id}`,
-    clientEmail: request.client_email,
-  });
-  const payment = confirmDeposit(intent);
-  if (payment.status !== 'succeeded') throw new HttpError(402, 'Deposit payment failed');
+  const payment = await startDeposit({ request, artist, baseUrl, fetchImpl });
+  await db.run('UPDATE requests SET payment_ref = ?, payment_provider = ?, updated_at = ? WHERE id = ?',
+    [payment.reference, payment.provider, nowIso(), request.id]);
 
+  if (!payment.settled) {
+    // Off to the provider's page. Nothing is booked yet, on purpose.
+    return { redirect_url: payment.redirect_url, provider: payment.provider };
+  }
+
+  const booked = await bookPaidRequest({ request, artist, reference: payment.reference });
+  return { appointment: booked.appointment, payment: { intent_id: payment.reference, amount_cents: payment.amount_cents } };
+}
+
+/**
+ * The provider confirmed the deposit. This is the only path that turns a quote
+ * into a booking, and it must tolerate being called twice: providers replay a
+ * webhook they did not see acknowledged.
+ */
+export async function confirmDepositPaid({ token, reference, amountCents }) {
+  const db = await getDb();
+  const request = await getRequestByToken(token);
+  const artist = await getArtist(request.artist_id);
+
+  const existing = await db.get(
+    "SELECT * FROM appointments WHERE request_id = ? AND status != 'cancelled' ORDER BY id DESC",
+    [request.id],
+  );
+  if (existing) return { appointment: existing, already: true };
+
+  if (Number.isFinite(amountCents) && amountCents !== request.deposit_cents) {
+    throw bad(`Deposit amount mismatch: expected ${request.deposit_cents}, received ${amountCents}`);
+  }
+
+  // The money arrived, so the client is owed an answer either way — but a slot
+  // taken in the meantime must never be double-booked.
+  try {
+    await assertSlotFree(artist.id, request.proposed_start, request.proposed_end);
+  } catch {
+    await db.run('UPDATE requests SET payment_ref = ?, updated_at = ? WHERE id = ?',
+      [reference, nowIso(), request.id]);
+    await queueMessage({
+      artistId: artist.id, requestId: request.id, kind: 'deposit_slot_taken',
+      recipient: artist.email,
+      subject: `Acompte reçu mais créneau déjà pris — ${request.client_name}`,
+      body: `L'acompte de ${request.deposit_cents / 100} € a été encaissé (${reference}) alors que le créneau du ${request.proposed_start} venait d'être réservé.\n\nProposez une autre date à ${request.client_name} (${request.client_email}) ou remboursez l'acompte.`,
+    });
+    await queueMessage({
+      artistId: artist.id, requestId: request.id, kind: 'deposit_slot_taken_client',
+      recipient: request.client_email,
+      subject: `Votre acompte est bien reçu — nous revenons vers vous pour la date`,
+      body: `Bonjour ${request.client_name},\n\nVotre acompte est bien enregistré, mais le créneau proposé vient d'être pris. ${artist.studio_name} vous recontacte très vite pour convenir d'une autre date — ou vous rembourse si aucune ne convient.`,
+    });
+    return { conflict: true };
+  }
+
+  return bookPaidRequest({ request, artist, reference });
+}
+
+async function bookPaidRequest({ request, artist, reference }) {
+  const db = await getDb();
   const now = nowIso();
   const info = await db.run(`
     INSERT INTO appointments (artist_id, request_id, starts_at, ends_at, price_cents, deposit_cents, status, created_at, updated_at)
@@ -215,14 +271,14 @@ export async function acceptQuote(token) {
   `, [artist.id, request.id, request.proposed_start, request.proposed_end,
     request.quote_price_cents, request.deposit_cents, now, now]);
 
-  await db.run("UPDATE requests SET status = 'booked', deposit_paid_at = ?, updated_at = ? WHERE id = ?",
-    [now, now, request.id]);
+  await db.run("UPDATE requests SET status = 'booked', deposit_paid_at = ?, payment_ref = ?, updated_at = ? WHERE id = ?",
+    [now, reference, now, request.id]);
 
   const appointment = await db.get('SELECT * FROM appointments WHERE id = ?', [info.lastInsertRowid]);
   const updatedRequest = await db.get('SELECT * FROM requests WHERE id = ?', [request.id]);
   await queueBookingConfirmed(artist, updatedRequest, appointment);
   await scheduleAppointmentReminders(artist, updatedRequest, appointment);
-  return { appointment, payment: { intent_id: payment.intent_id, amount_cents: payment.amount_cents } };
+  return { appointment, already: false };
 }
 
 /* -------------------------------------------------------------- appointments */

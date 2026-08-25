@@ -27,7 +27,7 @@ brief structuré → estimation automatique → devis + acompte → date bloqué
 ```bash
 npm run seed     # crée le studio de démo « Atelier Noir » et son historique
 npm start        # http://localhost:3000
-npm test         # 60 tests (estimation, parcours API, serverless, libSQL, envoi)
+npm test         # 77 tests (estimation, API, serverless, libSQL, envoi, paiement)
 ```
 
 Compte de démonstration : **demo@inkflow.app** / **demotattoo**
@@ -60,6 +60,9 @@ trop ancienne l'application le dit explicitement au démarrage au lieu de plante
 | `INKFLOW_MAIL_FROM` | — | Expéditeur vérifié chez le fournisseur (`no-reply@votre-domaine.fr`) |
 | `INKFLOW_MAIL_STREAM` | `outbound` | Postmark uniquement : le stream à utiliser |
 | `CRON_SECRET` | — | Protège `/api/cron/dispatch` ; Vercel l'envoie en `Authorization: Bearer` |
+| `INKFLOW_PAYMENTS` | `mock` | `stripe` pour encaisser réellement ; `mock` confirme sans rien prélever |
+| `STRIPE_SECRET_KEY` | — | Clé secrète Stripe (`sk_live_…`) |
+| `STRIPE_WEBHOOK_SECRET` | — | Secret de signature du webhook (`whsec_…`) |
 
 ## Parcours
 
@@ -101,7 +104,7 @@ src/
   service.js     règles métier : devis, acompte, agenda, no-show, statistiques
   pricing.js     moteur d'estimation (pur, testé isolément)
   messages.js    file d'envoi : confirmations, rappels, cicatrisation
-  payments.js    interface de paiement (mock ; Stripe se branche ici)
+  payments.js    acomptes : Stripe Checkout + vérification de signature, ou mock
   mailer.js      envoi réel : Resend, Postmark, Brevo, ou console
   auth.js        PBKDF2 + sessions en cookie HttpOnly
 public/          landing, connexion, tableau de bord, page de réservation, page de devis
@@ -298,6 +301,41 @@ descendent pas sous une exécution par jour ; sur un plan supérieur, passez la
 planification à `0 * * * *`. Définissez `CRON_SECRET` pour que l'endpoint
 n'accepte que l'appel du planificateur.
 
+### Encaissement des acomptes (Stripe)
+
+Par défaut `INKFLOW_PAYMENTS=mock` : l'acompte est confirmé sans qu'un centime
+ne bouge. C'est ce que veulent le développement local, les tests et la démo.
+
+Pour encaisser réellement :
+
+```
+INKFLOW_PAYMENTS      = stripe
+STRIPE_SECRET_KEY     = sk_live_…
+STRIPE_WEBHOOK_SECRET = whsec_…
+```
+
+Dans Stripe → Developers → Webhooks, ajoutez un endpoint sur
+`https://votre-domaine/api/webhooks/stripe` abonné à `checkout.session.completed`,
+puis copiez son secret de signature.
+
+**Le point de conception qui compte.** Accepter un devis n'ouvre qu'une page de
+paiement hébergée par Stripe : le créneau reste libre. C'est **le webhook signé
+qui bloque la date**, jamais l'URL de retour du navigateur — sinon n'importe qui
+réserverait un créneau en forgeant `?paid=1`. Les coordonnées bancaires ne
+transitent donc jamais par ce serveur.
+
+Trois conséquences prises en charge explicitement :
+
+- **Rejeu** — Stripe rejoue un webhook non acquitté ; une seconde livraison ne
+  crée pas un second rendez-vous.
+- **Montant** — un montant qui ne correspond pas au devis est refusé.
+- **Créneau pris entre-temps** — l'argent est arrivé, la date ne peut plus être
+  donnée : rien n'est réservé en double, l'artiste et le client sont prévenus,
+  et l'artiste tranche entre nouvelle date et remboursement.
+
+Les échecs de webhook répondent `200` avec la raison : un `4xx` ferait rejouer
+Stripe indéfiniment sur un problème qu'un rejeu ne corrige pas.
+
 ### Autre chemin : une machine avec un disque
 
 Railway, Fly.io, Render ou un VPS : `npm start` avec un disque persistant monté
@@ -310,8 +348,6 @@ création automatique du studio de démonstration).
 
 ## Passer en production
 
-- **Paiements** : remplacer `src/payments.js` par Stripe (PaymentIntent + webhook signé) en gardant
-  la même interface ; l'acompte n'est validé qu'après confirmation du webhook.
 - **SMS** : `src/mailer.js` ne fait que l'email ; un transport Twilio suivrait le même contrat
   (une fonction qui envoie ou qui lève).
 - **Planificateur** : le tick d'une minute suffit pour un serveur unique ; sur plusieurs instances,

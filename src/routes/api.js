@@ -1,4 +1,4 @@
-import { Router, json, readJson, setCookie, bad, conflict, notFound, HttpError } from '../http.js';
+import { Router, json, readJson, readRaw, setCookie, bad, conflict, notFound, HttpError } from '../http.js';
 import * as v from '../validate.js';
 import { getDb, nowIso, databaseFile, isEphemeral, isServerless, backend } from '../db.js';
 import {
@@ -6,7 +6,8 @@ import {
   currentArtist, publicArtist, SESSION_COOKIE,
 } from '../auth.js';
 import { estimate, DETAIL_LEVELS, COLOR_MODES } from '../pricing.js';
-import { providerNames, splitAddress } from '../mailer.js';
+import { providerNames, splitAddress, baseUrl } from '../mailer.js';
+import { paymentsProvider, verifyWebhook, PaymentError } from '../payments.js';
 import { dispatchDue, MAX_SEND_ATTEMPTS } from '../messages.js';
 import * as service from '../service.js';
 
@@ -53,6 +54,11 @@ api.get('/api/health', async (req, res) => {
     // the dashboard logs people out at random. Report whether one is configured —
     // never its value.
     sessions: { signing_key_configured: (process.env.INKFLOW_SECRET ?? '').length >= 16 },
+    payments: {
+      provider: paymentsProvider(),
+      key_configured: Boolean(process.env.STRIPE_SECRET_KEY),
+      webhook_secret_configured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
+    },
     mail: {
       provider: (process.env.INKFLOW_MAIL_PROVIDER || 'console').toLowerCase(),
       sender_configured: Boolean(process.env.INKFLOW_MAIL_FROM),
@@ -221,7 +227,48 @@ api.get('/api/public/quotes/:token', async (req, res, { params }) => {
 });
 
 api.post('/api/public/quotes/:token/accept', async (req, res, { params }) => {
-  json(res, 200, await service.acceptQuote(params.token));
+  json(res, 200, await service.acceptQuote(params.token, { baseUrl: baseUrl() }));
+});
+
+/**
+ * The provider's word that the money moved. Signed, so it is the only input
+ * trusted to book a date — the client's return URL is not proof of anything.
+ */
+api.post('/api/webhooks/stripe', async (req, res) => {
+  const raw = await readRaw(req);
+  let event;
+  try {
+    event = verifyWebhook(raw, req.headers['stripe-signature']);
+  } catch (err) {
+    console.error('[stripe] rejected webhook:', err.message);
+    throw new HttpError(400, err instanceof PaymentError ? err.message : 'Invalid webhook');
+  }
+
+  if (event.type !== 'checkout.session.completed') {
+    // Acknowledged, deliberately ignored: retrying it would change nothing.
+    return json(res, 200, { received: true, ignored: event.type });
+  }
+
+  const session = event.data?.object ?? {};
+  if (session.payment_status !== 'paid') {
+    return json(res, 200, { received: true, ignored: `payment_status=${session.payment_status}` });
+  }
+
+  const token = session.metadata?.public_token || session.client_reference_id;
+  if (!token) return json(res, 200, { received: true, ignored: 'no request reference' });
+
+  try {
+    const result = await service.confirmDepositPaid({
+      token,
+      reference: session.id,
+      amountCents: Number(session.amount_total),
+    });
+    json(res, 200, { received: true, booked: !result.conflict, already: Boolean(result.already) });
+  } catch (err) {
+    // A 4xx would have Stripe retry forever on something a retry cannot fix.
+    console.error('[stripe] could not honour a paid deposit:', err.message);
+    json(res, 200, { received: true, booked: false, error: err.message });
+  }
 });
 
 /* ------------------------------------------------------------ artist inboxes */

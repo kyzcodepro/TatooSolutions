@@ -6,7 +6,7 @@ let state = null;
 
 load();
 
-async function load() {
+async function load({ silent = false } = {}) {
   try {
     state = await api('GET', `/api/public/quotes/${encodeURIComponent(token)}`);
   } catch (err) {
@@ -16,6 +16,17 @@ async function load() {
   el('loading').classList.add('hidden');
   el('view').classList.remove('hidden');
   render();
+
+  // Returning from the hosted payment page.
+  if (!silent && new URLSearchParams(location.search).get('paid') === '1'
+      && state.request.status !== 'booked') {
+    el('subline').textContent = 'Paiement reçu — nous confirmons votre date, un instant…';
+    const confirmed = await awaitConfirmation();
+    if (!confirmed) {
+      el('subline').textContent = 'Paiement reçu. La confirmation prend quelques instants — '
+        + 'cette page se mettra à jour, et vous recevrez un email dès que la date est bloquée.';
+    }
+  }
 }
 
 const STEP_INDEX = { new: 1, quoted: 2, booked: 3, completed: 3, declined: 1, expired: 2 };
@@ -138,7 +149,12 @@ async function accept() {
   button.disabled = true;
   button.textContent = 'Paiement en cours…';
   try {
-    await api('POST', `/api/public/quotes/${encodeURIComponent(token)}/accept`);
+    const result = await api('POST', `/api/public/quotes/${encodeURIComponent(token)}/accept`);
+    if (result?.redirect_url) {
+      // Hosted payment page: the card details never touch this site.
+      location.href = result.redirect_url;
+      return;
+    }
     toast('Acompte enregistré, votre date est bloquée.');
     await load();
   } catch (err) {
@@ -146,4 +162,19 @@ async function accept() {
     button.disabled = false;
     button.textContent = 'Accepter et verser l\'acompte';
   }
+}
+
+/**
+ * Back from the payment page. The booking is confirmed by the provider's webhook,
+ * which may land a moment later — so the page waits for it rather than claiming
+ * a date the server has not recorded.
+ */
+async function awaitConfirmation() {
+  const deadline = Date.now() + 20000;
+  while (Date.now() < deadline) {
+    if (state?.request?.status === 'booked') return true;
+    await new Promise((done) => setTimeout(done, 1500));
+    await load({ silent: true });
+  }
+  return state?.request?.status === 'booked';
 }

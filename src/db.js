@@ -111,6 +111,8 @@ const SCHEMA = [
 const MIGRATIONS = [
   ['messages', 'attempts', 'INTEGER NOT NULL DEFAULT 0'],
   ['messages', 'last_error', 'TEXT'],
+  ['requests', 'payment_ref', 'TEXT'],
+  ['requests', 'payment_provider', 'TEXT'],
 ];
 
 let db = null;
