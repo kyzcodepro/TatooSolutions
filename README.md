@@ -27,7 +27,7 @@ brief structuré → estimation automatique → devis + acompte → date bloqué
 ```bash
 npm run seed     # crée le studio de démo « Atelier Noir » et son historique
 npm start        # http://localhost:3000
-npm test         # 42 tests (estimation, parcours API, serverless, backend libSQL)
+npm test         # 58 tests (estimation, parcours API, serverless, libSQL, envoi)
 ```
 
 Compte de démonstration : **demo@inkflow.app** / **demotattoo**
@@ -55,6 +55,11 @@ trop ancienne l'application le dit explicitement au démarrage au lieu de plante
 | `INKFLOW_DEMO` | `1` en serverless, sinon `0` | Crée le studio de démonstration si la base est vide |
 | `INKFLOW_SERVERLESS` | — | Force le mode serverless (base dans `/tmp`, envoi des rappels au fil du trafic) |
 | `INKFLOW_SECRET` | — | Clé de signature des sessions. **Indispensable en serverless** : sans elle chaque instance signe avec sa propre clé et les utilisateurs sont déconnectés au hasard |
+| `INKFLOW_MAIL_PROVIDER` | `console` | `resend`, `postmark`, `brevo`, ou `console` (les messages restent dans les logs) |
+| `INKFLOW_MAIL_KEY` | — | Clé d'API du fournisseur |
+| `INKFLOW_MAIL_FROM` | — | Expéditeur vérifié chez le fournisseur (`no-reply@votre-domaine.fr`) |
+| `INKFLOW_MAIL_STREAM` | `outbound` | Postmark uniquement : le stream à utiliser |
+| `CRON_SECRET` | — | Protège `/api/cron/dispatch` ; Vercel l'envoie en `Authorization: Bearer` |
 
 ## Parcours
 
@@ -97,6 +102,7 @@ src/
   pricing.js     moteur d'estimation (pur, testé isolément)
   messages.js    file d'envoi : confirmations, rappels, cicatrisation
   payments.js    interface de paiement (mock ; Stripe se branche ici)
+  mailer.js      envoi réel : Resend, Postmark, Brevo, ou console
   auth.js        PBKDF2 + sessions en cookie HttpOnly
 public/          landing, connexion, tableau de bord, page de réservation, page de devis
 test/            tests d'estimation et parcours API de bout en bout
@@ -257,6 +263,35 @@ relecture après fermeture puis réouverture de la connexion. Le trajet réseau 
 Turso, lui, n'est pas testé ici — il n'y a pas de credentials dans ce dépôt, et
 un test qui passerait sans les avoir ne prouverait rien.
 
+### Envoi des emails
+
+Sans `INKFLOW_MAIL_PROVIDER`, rien ne quitte la machine : les messages sont
+écrits dans les logs. Pour envoyer réellement, trois variables suffisent :
+
+```
+INKFLOW_MAIL_PROVIDER = resend          # ou postmark, ou brevo
+INKFLOW_MAIL_KEY      = <clé d'API>
+INKFLOW_MAIL_FROM     = no-reply@votre-domaine.fr
+```
+
+L'expéditeur doit être **vérifié chez le fournisseur** (domaine authentifié) —
+sinon l'envoi est refusé et l'erreur remonte telle quelle dans le tableau de bord.
+Le client voit le nom du studio comme expéditeur et peut répondre directement à
+l'artiste : le `reply-to` porte son adresse.
+
+Un message n'est marqué comme envoyé que si le fournisseur l'a accepté. En cas
+d'échec, la raison est conservée, la tentative comptée, et le message repasse au
+tour suivant — jusqu'à cinq fois, après quoi il est abandonné plutôt que réessayé
+indéfiniment. L'onglet **Messages** affiche ces trois états (envoyé, nouvel essai,
+abandonné) : un rappel qui n'est pas parti se voit.
+
+**Déclenchement.** En serverless, la file est vidée à l'occasion du trafic (une
+passe par minute et par instance) et par un cron quotidien déclaré dans
+`vercel.json` (`/api/cron/dispatch`, 8 h UTC). Les offres Hobby de Vercel ne
+descendent pas sous une exécution par jour ; sur un plan supérieur, passez la
+planification à `0 * * * *`. Définissez `CRON_SECRET` pour que l'endpoint
+n'accepte que l'appel du planificateur.
+
 ### Autre chemin : une machine avec un disque
 
 Railway, Fly.io, Render ou un VPS : `npm start` avec un disque persistant monté
@@ -271,7 +306,8 @@ création automatique du studio de démonstration).
 
 - **Paiements** : remplacer `src/payments.js` par Stripe (PaymentIntent + webhook signé) en gardant
   la même interface ; l'acompte n'est validé qu'après confirmation du webhook.
-- **Emails / SMS** : remplacer `defaultTransport` dans `src/messages.js` par Postmark, Brevo ou Twilio.
+- **SMS** : `src/mailer.js` ne fait que l'email ; un transport Twilio suivrait le même contrat
+  (une fonction qui envoie ou qui lève).
 - **Planificateur** : le tick d'une minute suffit pour un serveur unique ; sur plusieurs instances,
   déplacer `dispatchDue()` dans un worker avec un verrou.
 - **Uploads** : les références sont aujourd'hui des URLs ; un stockage objet (S3/R2) permettrait

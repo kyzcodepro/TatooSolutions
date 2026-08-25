@@ -1,4 +1,4 @@
-import { Router, json, readJson, setCookie, bad, conflict, notFound } from '../http.js';
+import { Router, json, readJson, setCookie, bad, conflict, notFound, HttpError } from '../http.js';
 import * as v from '../validate.js';
 import { getDb, nowIso, databaseFile, isEphemeral, isServerless, backend } from '../db.js';
 import {
@@ -6,7 +6,8 @@ import {
   currentArtist, publicArtist, SESSION_COOKIE,
 } from '../auth.js';
 import { estimate, DETAIL_LEVELS, COLOR_MODES } from '../pricing.js';
-import { dispatchDue } from '../messages.js';
+import { providerNames } from '../mailer.js';
+import { dispatchDue, MAX_SEND_ATTEMPTS } from '../messages.js';
 import * as service from '../service.js';
 
 export const api = new Router();
@@ -44,6 +45,11 @@ api.get('/api/health', async (req, res) => {
     // the dashboard logs people out at random. Report whether one is configured —
     // never its value.
     sessions: { signing_key_configured: (process.env.INKFLOW_SECRET ?? '').length >= 16 },
+    mail: {
+      provider: (process.env.INKFLOW_MAIL_PROVIDER || 'console').toLowerCase(),
+      sender_configured: Boolean(process.env.INKFLOW_MAIL_FROM),
+      key_configured: Boolean(process.env.INKFLOW_MAIL_KEY),
+    },
     pending_messages: pending.count,
     time: nowIso(),
   });
@@ -327,6 +333,18 @@ api.get('/api/messages', async (req, res, { url }) => {
 api.post('/api/messages/dispatch', async (req, res) => {
   await requireArtist(req);
   json(res, 200, { dispatched: await dispatchDue() });
+});
+
+// Called by a scheduler (Vercel Cron), so it authenticates with a shared secret
+// rather than a session. Without traffic nothing would ever flush the outbox.
+api.get('/api/cron/dispatch', async (req, res) => {
+  const secret = process.env.CRON_SECRET || process.env.INKFLOW_CRON_SECRET;
+  if (secret) {
+    const offered = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
+    if (offered !== secret) throw new HttpError(401, 'Bad cron credentials');
+  }
+  const dispatched = await dispatchDue();
+  json(res, 200, { dispatched, max_attempts: MAX_SEND_ATTEMPTS });
 });
 
 api.get('/api/stats', async (req, res, { url }) => {

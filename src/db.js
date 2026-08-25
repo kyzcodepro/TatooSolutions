@@ -106,6 +106,13 @@ const SCHEMA = [
   'CREATE INDEX IF NOT EXISTS idx_messages_due ON messages(sent_at, scheduled_for)',
 ];
 
+// Columns added after the first release. CREATE TABLE IF NOT EXISTS leaves an
+// existing table alone, so they are added separately and only when missing.
+const MIGRATIONS = [
+  ['messages', 'attempts', 'INTEGER NOT NULL DEFAULT 0'],
+  ['messages', 'last_error', 'TEXT'],
+];
+
 let db = null;
 let dbPromise = null;
 let resolvedFile = null;
@@ -144,8 +151,17 @@ export function getDb() {
 async function connect() {
   const adapter = isTurso() ? await openTurso() : openSqlite();
   for (const statement of SCHEMA) await adapter.exec(statement);
+  for (const [table, column, definition] of MIGRATIONS) {
+    await addColumnIfMissing(adapter, table, column, definition);
+  }
   db = adapter;
   return db;
+}
+
+async function addColumnIfMissing(adapter, table, column, definition) {
+  const columns = await adapter.all(`PRAGMA table_info(${table})`);
+  if (columns.some((row) => row.name === column)) return;
+  await adapter.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 }
 
 /* ------------------------------------------------------- local file backend */

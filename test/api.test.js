@@ -1,6 +1,6 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { client, shutdown, inDays } from './helpers.js';
+import { base, client, shutdown, inDays } from './helpers.js';
 
 after(shutdown);
 
@@ -295,7 +295,42 @@ test('due messages are dispatched once', async () => {
 test('static pages and unknown endpoints behave', async () => {
   const anon = client();
   assert.equal((await anon('GET', '/api/nope')).status, 404);
-  const home = await fetch(`${(await import('./helpers.js')).base}/`);
+  const home = await fetch(`${base}/`);
   assert.equal(home.status, 200);
   assert.match(home.headers.get('content-type'), /text\/html/);
+});
+
+test('the cron endpoint flushes the outbox and can be locked with a secret', async () => {
+  const anon = client();
+  const open = await anon('GET', '/api/cron/dispatch');
+  assert.equal(open.status, 200, 'without a secret configured the scheduler can call in');
+  assert.equal(typeof open.data.dispatched, 'number');
+
+  process.env.CRON_SECRET = 'a-scheduler-secret';
+  try {
+    const refused = await anon('GET', '/api/cron/dispatch');
+    assert.equal(refused.status, 401);
+
+    const res = await fetch(`${base}/api/cron/dispatch`, {
+      headers: { authorization: 'Bearer a-scheduler-secret' },
+    });
+    assert.equal(res.status, 200);
+  } finally {
+    delete process.env.CRON_SECRET;
+  }
+});
+
+test('health reports how mail is configured, without leaking the key', async () => {
+  process.env.INKFLOW_MAIL_PROVIDER = 'resend';
+  process.env.INKFLOW_MAIL_KEY = 'super-secret-key';
+  try {
+    const res = await fetch(`${base}/api/health`);
+    const body = await res.json();
+    assert.equal(body.mail.provider, 'resend');
+    assert.equal(body.mail.key_configured, true);
+    assert.ok(!JSON.stringify(body).includes('super-secret-key'));
+  } finally {
+    delete process.env.INKFLOW_MAIL_PROVIDER;
+    delete process.env.INKFLOW_MAIL_KEY;
+  }
 });

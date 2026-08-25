@@ -372,12 +372,21 @@ async function loadMessages() {
     <div class="outbox-item">
       <div class="row-between">
         <b>${esc(message.subject)}</b>
-        <span class="badge">${message.sent_at ? `envoyé ${esc(relative(message.sent_at))}` : `prévu ${esc(relative(message.scheduled_for))}`}</span>
+        ${outboxState(message)}
       </div>
       <div class="faint" style="font-size:0.82rem">${esc(message.recipient)} · ${esc(message.kind)}</div>
+      ${message.last_error ? `<div class="warn-line">Échec d'envoi (${esc(message.attempts)} tentative${message.attempts > 1 ? 's' : ''}) : ${esc(message.last_error)}</div>` : ''}
       <div class="outbox-body">${esc(message.body.replaceAll('{{base_url}}', location.origin))}</div>
     </div>`).join('')
     : '<div class="empty">Les messages partiront dès votre première demande.</div>';
+}
+
+// Sent, still waiting, or given up on — the artist should not have to guess which.
+function outboxState(message) {
+  if (message.sent_at) return `<span class="badge badge-booked">envoyé ${esc(relative(message.sent_at))}</span>`;
+  if (message.attempts >= 5) return '<span class="badge badge-declined">abandonné après 5 tentatives</span>';
+  if (message.last_error) return '<span class="badge badge-quoted">nouvel essai au prochain passage</span>';
+  return `<span class="badge">prévu ${esc(relative(message.scheduled_for))}</span>`;
 }
 
 /* ----------------------------------------------------------------- settings */

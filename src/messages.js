@@ -4,6 +4,7 @@
 
 import { getDb, nowIso } from './db.js';
 import { formatMoney } from './pricing.js';
+import { createTransport } from './mailer.js';
 
 const HOUR = 3600000;
 const DAY = 24 * HOUR;
@@ -147,26 +148,39 @@ export async function cancelPendingMessages(appointmentId, kinds = null) {
   return info.changes;
 }
 
-/**
- * Marks every due message as sent and hands it to the transport.
- * The transport is a seam: swap the console logger for Postmark/Brevo/Twilio in one place.
- */
-export async function dispatchDue(now = nowIso(), transport = defaultTransport) {
-  const db = await getDb();
-  const due = await db.all(
-    'SELECT * FROM messages WHERE sent_at IS NULL AND scheduled_for <= ? ORDER BY scheduled_for LIMIT 200',
-    [now],
-  );
-  for (const message of due) {
-    transport(message);
-    await db.run('UPDATE messages SET sent_at = ? WHERE id = ?', [nowIso(), message.id]);
-  }
-  return due.length;
-}
+/** Enough retries to ride out a provider hiccup, few enough to stop chasing a dead address. */
+export const MAX_SEND_ATTEMPTS = 5;
 
-function defaultTransport(message) {
-  if (process.env.INKFLOW_QUIET === '1') return;
-  const baseUrl = process.env.INKFLOW_BASE_URL || 'http://localhost:3000';
-  const body = message.body.replaceAll('{{base_url}}', baseUrl);
-  console.log(`[outbox] ${message.channel} → ${message.recipient} | ${message.subject}\n${body}\n`);
+/**
+ * Hands every due message to the transport and records what happened.
+ *
+ * A message is marked sent only once the transport accepted it. A failure is
+ * counted and kept for the next pass — recording a delivery that did not happen
+ * would silently drop the reminder that stops a no-show.
+ */
+export async function dispatchDue(now = nowIso(), transport = null) {
+  const db = await getDb();
+  const send = transport ?? createTransport();
+  const due = await db.all(`
+    SELECT m.*, a.email AS artist_email, a.studio_name
+    FROM messages m JOIN artists a ON a.id = m.artist_id
+    WHERE m.sent_at IS NULL AND m.attempts < ? AND m.scheduled_for <= ?
+    ORDER BY m.scheduled_for LIMIT 200
+  `, [MAX_SEND_ATTEMPTS, now]);
+
+  let sent = 0;
+  for (const message of due) {
+    try {
+      await send(message);
+      await db.run('UPDATE messages SET sent_at = ?, attempts = attempts + 1, last_error = NULL WHERE id = ?',
+        [nowIso(), message.id]);
+      sent += 1;
+    } catch (err) {
+      const reason = String(err?.message ?? err).slice(0, 300);
+      await db.run('UPDATE messages SET attempts = attempts + 1, last_error = ? WHERE id = ?',
+        [reason, message.id]);
+      console.error(`[outbox] ${message.kind} → ${message.recipient} failed: ${reason}`);
+    }
+  }
+  return sent;
 }
