@@ -102,9 +102,36 @@ Points d'attention côté sécurité et intégrité :
 
 ### Vercel (démo)
 
-Le dépôt contient `api/index.js` (point d'entrée de la fonction) et `vercel.json`
-(toutes les routes vers cette fonction, `public/**` embarqué). Aucun build, aucune
-dépendance : `vercel --prod` suffit, ou un import du dépôt depuis l'interface Vercel.
+**Preset « Node » (recommandé).** Vercel exécute `npm start`, votre serveur reçoit
+toutes les routes, et le planificateur tourne comme en local. Rien à configurer :
+`vercel.json` ne contient que quatre réécritures vers des pages statiques
+(`/login`, `/app`, `/b/:slug`, `/q/:token`), sans effet sur ce mode puisqu'elles
+servent exactement les mêmes fichiers que le serveur.
+
+**Preset « Other » (mode fonction).** `api/index.js` sert alors de point d'entrée.
+Ajoutez dans ce cas la réécriture attrape-tout et l'embarquement des pages :
+
+```json
+{
+  "functions": { "api/index.js": { "includeFiles": "public/**" } },
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
+}
+```
+
+Ne mettez jamais les deux configurations en même temps : avec le preset Node,
+l'attrape-tout détourne tout le trafic vers une fonction, et un bloc `functions`
+qui ne correspond à aucune fonction construite fait échouer le build.
+
+Aucune dépendance, aucun build : `vercel --prod` suffit, ou un import du dépôt
+depuis l'interface Vercel.
+
+Deux réglages à ne pas rater à la création du projet :
+
+- **Production Branch** = la branche importée, sinon les pushs ne produisent que
+  des déploiements *preview* et l'URL de production continue de servir le tout
+  premier déploiement.
+- **`INKFLOW_BASE_URL`** = l'URL publique du projet, pour que les liens envoyés
+  aux clients (suivi de demande, devis) pointent au bon endroit.
 
 > **Attention — les données ne survivent pas.** Une fonction serverless n'a qu'un
 > `/tmp` accessible en écriture, propre à chaque instance et effacé à chaque cold
