@@ -13,6 +13,18 @@ export const api = new Router();
 
 /* -------------------------------------------------------------------- health */
 
+// Counterpart of api/ping.js. Whichever one answers tells you how the deployment
+// is serving traffic: "function" means Vercel routes through api/, "app" means the
+// request reached the application router itself.
+api.get('/api/ping', async (req, res) => {
+  json(res, 200, {
+    probe: 'app',
+    node: process.version,
+    commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
+    time: nowIso(),
+  });
+});
+
 // Answers "is this deployment actually wired up?" without exposing any data.
 api.get('/api/health', async (req, res) => {
   const db = getDb();

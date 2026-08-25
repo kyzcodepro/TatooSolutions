@@ -115,3 +115,22 @@ test('a broken application reports why instead of crashing the function', async 
     'the report lists env names, never their values');
   broken.close();
 });
+
+test('the inert probe answers without touching the application', async () => {
+  const { default: ping } = await import('../api/ping.js');
+  const probe = createServer(ping);
+  await new Promise((done) => probe.listen(0, done));
+
+  const res = await fetch(`http://127.0.0.1:${probe.address().port}/api/ping`);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.probe, 'function');
+  assert.equal(body.node, process.version);
+  probe.close();
+});
+
+test('the application router answers the same probe with its own marker', async () => {
+  const res = await fetch(`${base}/api/ping`);
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).probe, 'app');
+});

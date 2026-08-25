@@ -113,6 +113,18 @@ dépendance : `vercel --prod` suffit, ou un import du dépôt depuis l'interface
 > fonctionne, mais **une réservation prise sur ce déploiement peut disparaître**.
 > C'est une vitrine, pas un environnement de production.
 
+#### Vérifier un déploiement en trois URL
+
+| URL | Réponse attendue | Ce que dit une autre réponse |
+| --- | --- | --- |
+| `/api/ping` | `{"probe":"function"}` ou `{"probe":"app"}` avec le commit déployé | Ni l'un ni l'autre : Vercel ne construit pas `api/` — vérifier Framework Preset (« Other ») et Root Directory du projet |
+| `/api/health` | `status: ok`, version de Node, base utilisée | Rapport d'erreur JSON : l'application démarre mal, le message dit pourquoi |
+| `/b/atelier-noir` | La page de réservation du studio de démonstration | 500 : voir `/api/health` |
+
+`/api/ping` répond `"probe":"function"` quand Vercel sert via `api/index.js`, et
+`"probe":"app"` quand il exécute l'application comme serveur Node. Les deux modes
+fonctionnent ; le champ `commit` indique quel commit est réellement en ligne.
+
 #### Si la fonction renvoie une erreur
 
 `api/index.js` n'importe l'application qu'à l'intérieur du handler. Toute panne au
