@@ -4,8 +4,9 @@ import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HttpError, json } from './http.js';
 import { api } from './routes/api.js';
-import { getDb } from './db.js';
+import { getDb, isServerless, isEphemeral } from './db.js';
 import { dispatchDue } from './messages.js';
+import { seedIfEmpty } from './seed.js';
 
 const ROOT = resolve(fileURLToPath(new URL('../', import.meta.url)));
 const PUBLIC_DIR = join(ROOT, 'public');
@@ -54,25 +55,66 @@ async function serveStatic(res, pathname) {
   return serveFile(res, target);
 }
 
-export function createApp() {
+let booted = false;
+
+/**
+ * One-time per-instance setup. On a serverless platform every cold start gets a
+ * fresh /tmp database, so the demo studio is recreated to avoid a blank site.
+ */
+export function bootstrap() {
+  if (booted) return;
+  booted = true;
   getDb();
-  return createServer(async (req, res) => {
-    const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`);
+  const demo = process.env.INKFLOW_DEMO ?? (isServerless() ? '1' : '0');
+  if (demo === '1') {
     try {
-      const match = api.match(req.method, url.pathname);
-      if (match) return await match.handler(req, res, { params: match.params, url });
-      if (url.pathname.startsWith('/api/')) throw new HttpError(404, 'Unknown endpoint');
-      if (req.method !== 'GET' && req.method !== 'HEAD') throw new HttpError(405, 'Method not allowed');
-      return await serveStatic(res, url.pathname);
+      seedIfEmpty();
     } catch (err) {
-      if (err instanceof HttpError) {
-        return json(res, err.status, { error: err.message, details: err.details });
-      }
-      if (err?.code === 'ENOENT') return json(res, 404, { error: 'Not found' });
-      console.error('[error]', req.method, url.pathname, err);
-      return json(res, 500, { error: 'Internal server error' });
+      console.error('[seed]', err);
     }
-  });
+  }
+  if (isEphemeral()) {
+    console.warn('[db] running on an ephemeral database: bookings are lost on the next cold start');
+  }
+}
+
+// Serverless has no long-running timer, so reminders are flushed opportunistically
+// on incoming traffic instead. At most one pass per minute per instance.
+let lastDispatch = 0;
+function dispatchOnTraffic() {
+  if (Date.now() - lastDispatch < 60000) return;
+  lastDispatch = Date.now();
+  try {
+    dispatchDue();
+  } catch (err) {
+    console.error('[scheduler]', err);
+  }
+}
+
+/** Node-style handler, shared by the local server and the serverless entry point. */
+export async function handleRequest(req, res) {
+  bootstrap();
+  if (isServerless()) dispatchOnTraffic();
+  const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`);
+  try {
+    const match = api.match(req.method, url.pathname);
+    if (match) return await match.handler(req, res, { params: match.params, url });
+    if (url.pathname.startsWith('/api/')) throw new HttpError(404, 'Unknown endpoint');
+    if (req.method !== 'GET' && req.method !== 'HEAD') throw new HttpError(405, 'Method not allowed');
+    return await serveStatic(res, url.pathname);
+  } catch (err) {
+    if (err instanceof HttpError) {
+      return json(res, err.status, { error: err.message, details: err.details });
+    }
+    if (err?.code === 'ENOENT') return json(res, 404, { error: 'Not found' });
+    console.error('[error]', req.method, url.pathname, err);
+    return json(res, 500, { error: 'Internal server error' });
+  }
+}
+
+export function createApp() {
+  bootstrap();
+  return createServer(handleRequest);
 }
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);

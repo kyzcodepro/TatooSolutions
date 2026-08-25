@@ -43,6 +43,7 @@ Aucune dépendance à installer : le serveur tourne sur Node 22 (`node:http`, `n
 | `INKFLOW_DB` | `data/inkflow.sqlite` | Fichier SQLite (`:memory:` accepté) |
 | `INKFLOW_BASE_URL` | `http://localhost:3000` | URL utilisée dans les liens envoyés aux clients |
 | `INKFLOW_QUIET` | — | `1` coupe l'affichage des messages sortants dans la console |
+| `INKFLOW_DEMO` | `1` en serverless, sinon `0` | Crée le studio de démonstration si la base est vide |
 
 ## Parcours
 
@@ -95,6 +96,43 @@ Points d'attention côté sécurité et intégrité :
 - toutes les entrées passent par `src/validate.js`, montants en centimes entiers ;
 - chevauchements de créneaux et périodes bloquées vérifiés côté serveur, pas seulement dans l'UI ;
 - les messages sont écrits en base avant envoi : un redémarrage ne perd aucun rappel.
+
+## Déployer
+
+### Vercel (démo)
+
+Le dépôt contient `api/index.js` (point d'entrée de la fonction) et `vercel.json`
+(toutes les routes vers cette fonction, `public/**` embarqué). Aucun build, aucune
+dépendance : `vercel --prod` suffit, ou un import du dépôt depuis l'interface Vercel.
+
+> **Attention — les données ne survivent pas.** Une fonction serverless n'a qu'un
+> `/tmp` accessible en écriture, propre à chaque instance et effacé à chaque cold
+> start. Sur Vercel, Inkflow ouvre donc sa base dans `/tmp` et recrée le studio de
+> démonstration quand elle est vide : le site est consultable et le parcours complet
+> fonctionne, mais **une réservation prise sur ce déploiement peut disparaître**.
+> C'est une vitrine, pas un environnement de production.
+
+Le planificateur ne peut pas tourner en tâche de fond dans une fonction : en mode
+serverless, les messages dus sont envoyés à l'occasion du trafic (une passe par
+minute et par instance au maximum). Sans visiteurs, les rappels attendent.
+
+### Déploiement durable
+
+Deux chemins, au choix :
+
+1. **Garder SQLite et une vraie machine** — Railway, Fly.io, Render ou un VPS :
+   `npm start` avec un disque persistant monté sur `data/`. C'est le mode pour
+   lequel l'application est écrite (processus long, planificateur à la minute) et
+   c'est le moins de travail.
+2. **Rester sur Vercel avec une base gérée** — remplacer `src/db.js` par un client
+   Turso/libSQL (dialecte SQLite, le schéma est repris tel quel) ou Neon/Postgres.
+   Le reste du code passe par `getDb()`, la bascule est donc contenue dans ce fichier
+   et dans les appels `prepare/run/get/all`. Prévoir aussi un Vercel Cron qui appelle
+   `/api/messages/dispatch` pour que les rappels partent sans dépendre du trafic.
+
+Variables utiles au déploiement : `INKFLOW_DB` (chemin de la base),
+`INKFLOW_BASE_URL` (liens envoyés aux clients), `INKFLOW_DEMO=0` (désactive la
+création automatique du studio de démonstration).
 
 ## Passer en production
 

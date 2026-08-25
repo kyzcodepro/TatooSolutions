@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS artists (
@@ -107,10 +108,41 @@ CREATE INDEX IF NOT EXISTS idx_messages_due ON messages(sent_at, scheduled_for);
 
 let db = null;
 
+/**
+ * Serverless platforms (Vercel, Lambda) mount the deployment read-only and give
+ * you a writable /tmp only, so a database next to the code cannot be created there.
+ * `/tmp` is per-instance and wiped on cold start — fine for a demo, not for real
+ * bookings. See the deployment section of the README for the durable options.
+ */
+export function databaseFile() {
+  if (process.env.INKFLOW_DB) return process.env.INKFLOW_DB;
+  if (isServerless()) return join(tmpdir(), 'inkflow.sqlite');
+  return resolve(process.cwd(), 'data/inkflow.sqlite');
+}
+
+export const isServerless = () => Boolean(
+  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.INKFLOW_SERVERLESS,
+);
+
+/** True when bookings will not survive the next cold start. */
+export const isEphemeral = () => (resolvedFile ?? databaseFile()).startsWith(tmpdir());
+
+let resolvedFile = null;
+
 export function getDb() {
   if (db) return db;
-  const file = process.env.INKFLOW_DB || resolve(process.cwd(), 'data/inkflow.sqlite');
-  if (file !== ':memory:') mkdirSync(dirname(file), { recursive: true });
+  let file = databaseFile();
+  if (file !== ':memory:') {
+    try {
+      mkdirSync(dirname(file), { recursive: true });
+    } catch (err) {
+      // Read-only filesystem: fall back to the one directory we can always write to.
+      if (err.code !== 'EROFS' && err.code !== 'EACCES' && err.code !== 'EPERM') throw err;
+      file = join(tmpdir(), 'inkflow.sqlite');
+      console.warn(`[db] ${dirname(databaseFile())} is not writable, using ${file} (data is ephemeral)`);
+    }
+  }
+  resolvedFile = file;
   db = new DatabaseSync(file);
   db.exec('PRAGMA journal_mode = WAL;');
   db.exec('PRAGMA foreign_keys = ON;');
@@ -121,6 +153,7 @@ export function getDb() {
 export function resetDb() {
   if (db) db.close();
   db = null;
+  resolvedFile = null;
 }
 
 export const nowIso = () => new Date().toISOString();

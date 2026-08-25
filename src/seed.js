@@ -2,13 +2,15 @@
 // a booked slot, a completed piece and one no-show so the stats mean something.
 // Run with `npm run seed`, log in with demo@inkflow.app / demotattoo.
 
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getDb, nowIso } from './db.js';
 import { hashPassword } from './auth.js';
 import * as service from './service.js';
 import { dispatchDue } from './messages.js';
 
-const DEMO_EMAIL = 'demo@inkflow.app';
-const DEMO_PASSWORD = 'demotattoo';
+export const DEMO_EMAIL = 'demo@inkflow.app';
+export const DEMO_PASSWORD = 'demotattoo';
 
 const at = (days, hour = 10) => {
   const date = new Date(Date.now() + days * 86400000);
@@ -75,7 +77,7 @@ function createDemoArtist(db) {
   return db.prepare('SELECT * FROM artists WHERE id = ?').get(Number(info.lastInsertRowid));
 }
 
-function main() {
+export function seedDemo() {
   const db = getDb();
   resetDemo(db);
   const artist = createDemoArtist(db);
@@ -117,7 +119,22 @@ function main() {
   // Anything already due (past confirmations, aftercare) is marked as delivered.
   dispatchDue();
 
-  const stats = service.stats(artist.id);
+  return { artist, stats: service.stats(artist.id) };
+}
+
+/** Fills an empty database so a fresh deployment is not a blank page. */
+export function seedIfEmpty() {
+  const db = getDb();
+  const { count } = db.prepare('SELECT COUNT(*) AS count FROM artists').get();
+  if (count > 0) return false;
+  seedDemo();
+  console.log('[seed] empty database — demo studio created');
+  return true;
+}
+
+const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  const { artist, stats } = seedDemo();
   console.log('Seed terminé.');
   console.log(`  Studio      : ${artist.studio_name} (/b/${artist.slug})`);
   console.log(`  Connexion   : ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
@@ -125,5 +142,3 @@ function main() {
   console.log(`  À venir     : ${stats.upcoming.count} séance(s), ${stats.upcoming.deposits_held_cents / 100} € d'acomptes`);
   console.log(`  No-shows    : ${stats.no_shows} (${stats.deposits_kept_cents / 100} € conservés)`);
 }
-
-main();
