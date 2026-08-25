@@ -23,12 +23,8 @@ CREATE TABLE IF NOT EXISTS artists (
   created_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS sessions (
-  token TEXT PRIMARY KEY,
-  artist_id INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
-  expires_at TEXT NOT NULL,
-  created_at TEXT NOT NULL
-);
+-- No sessions table: sessions are signed cookies (see src/auth.js), so they need
+-- no server-side state and survive a request landing on another instance.
 
 CREATE TABLE IF NOT EXISTS requests (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

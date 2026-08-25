@@ -51,6 +51,7 @@ trop ancienne l'application le dit explicitement au démarrage au lieu de plante
 | `INKFLOW_QUIET` | — | `1` coupe l'affichage des messages sortants dans la console |
 | `INKFLOW_DEMO` | `1` en serverless, sinon `0` | Crée le studio de démonstration si la base est vide |
 | `INKFLOW_SERVERLESS` | — | Force le mode serverless (base dans `/tmp`, envoi des rappels au fil du trafic) |
+| `INKFLOW_SECRET` | — | Clé de signature des sessions. **Indispensable en serverless** : sans elle chaque instance signe avec sa propre clé et les utilisateurs sont déconnectés au hasard |
 
 ## Parcours
 
@@ -100,7 +101,11 @@ test/            tests d'estimation et parcours API de bout en bout
 
 Points d'attention côté sécurité et intégrité :
 
-- mots de passe en PBKDF2-SHA512 (120 000 itérations), sessions en cookie `HttpOnly`/`SameSite=Lax` ;
+- mots de passe en PBKDF2-SHA512 (120 000 itérations) ;
+- sessions en cookie `HttpOnly`/`SameSite=Lax` signées en HMAC-SHA256 : elles ne
+  dépendent d'aucun état serveur, donc une requête servie par une autre instance
+  reste authentifiée. La clé vient de `INKFLOW_SECRET` — jamais d'une valeur
+  publique comme le SHA du commit, qui permettrait de forger une session ;
 - chaque requête artiste est filtrée par `artist_id` — un studio ne peut pas lire la boîte d'un autre ;
 - toutes les entrées passent par `src/validate.js`, montants en centimes entiers ;
 - chevauchements de créneaux et périodes bloquées vérifiés côté serveur, pas seulement dans l'UI ;
@@ -144,6 +149,14 @@ Deux réglages à ne pas rater à la création du projet :
   premier déploiement.
 - **`INKFLOW_BASE_URL`** = l'URL publique du projet, pour que les liens envoyés
   aux clients (suivi de demande, devis) pointent au bon endroit.
+- **`INKFLOW_SECRET`** = une longue chaîne aléatoire. Sans elle, chaque instance
+  signe les sessions avec sa propre clé et le tableau de bord renvoie
+  « Authentication required » dès qu'une requête change d'instance.
+
+Rappel sur la « Deployment Protection » : sur une URL de *preview*, Vercel affiche
+sa propre page **Authentication Required** (redirection vers `vercel.com/sso-api`).
+Ce n'est pas l'application — utilisez l'URL de production, ou désactivez la
+protection dans les réglages du projet.
 
 > **Attention — les données ne survivent pas.** Une fonction serverless n'a qu'un
 > `/tmp` accessible en écriture, propre à chaque instance et effacé à chaque cold

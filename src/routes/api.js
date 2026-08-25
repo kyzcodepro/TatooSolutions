@@ -91,8 +91,7 @@ api.post('/api/auth/login', async (req, res) => {
 });
 
 api.post('/api/auth/logout', async (req, res) => {
-  const token = (req.headers.cookie || '').match(/inkflow_session=([^;]+)/)?.[1];
-  destroySession(token ? decodeURIComponent(token) : null);
+  destroySession();
   setCookie(res, SESSION_COOKIE, '', { maxAge: 0 });
   json(res, 200, { ok: true });
 });

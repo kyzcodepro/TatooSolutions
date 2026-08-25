@@ -1,5 +1,5 @@
-import { randomBytes, pbkdf2Sync, timingSafeEqual } from 'node:crypto';
-import { getDb, nowIso } from './db.js';
+import { createHmac, randomBytes, pbkdf2Sync, timingSafeEqual } from 'node:crypto';
+import { getDb } from './db.js';
 import { parseCookies, unauthorized } from './http.js';
 
 const ITERATIONS = 120000;
@@ -20,30 +20,78 @@ export function verifyPassword(password, hash, salt) {
   return timingSafeEqual(candidate, expected);
 }
 
-export function createSession(artistId) {
-  const token = randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400000).toISOString();
-  getDb()
-    .prepare('INSERT INTO sessions (token, artist_id, expires_at, created_at) VALUES (?, ?, ?, ?)')
-    .run(token, artistId, expiresAt, nowIso());
-  return { token, expiresAt, maxAge: SESSION_DAYS * 86400 };
+/**
+ * Sessions are signed cookies rather than rows in the database.
+ *
+ * A session row only exists on the instance that wrote it. On a platform that
+ * runs several instances — each with its own /tmp database — logging in on one
+ * and being served by another means the row is missing and the request is
+ * rejected with "Authentication required", at random. A signed token carries its
+ * own proof, so any instance holding the same secret accepts it.
+ *
+ * The secret must therefore be shared and secret. INKFLOW_SECRET provides it; a
+ * public value such as the commit SHA would let anyone mint a session. Without
+ * it, each instance falls back to a random key of its own — safe, but sessions
+ * stop working across instances, so the fallback says so loudly.
+ */
+let cachedSecret = null;
+
+export function sessionSecret() {
+  if (cachedSecret) return cachedSecret;
+  const configured = process.env.INKFLOW_SECRET;
+  if (configured && configured.length >= 16) {
+    cachedSecret = configured;
+  } else {
+    cachedSecret = randomBytes(32).toString('hex');
+    console.warn(
+      '[auth] INKFLOW_SECRET is not set (or is shorter than 16 characters): sessions are '
+      + 'signed with a key generated for this instance only. On a multi-instance host, '
+      + 'users will be logged out at random. Set INKFLOW_SECRET to a long random string.',
+    );
+  }
+  return cachedSecret;
 }
 
-export function destroySession(token) {
-  if (token) getDb().prepare('DELETE FROM sessions WHERE token = ?').run(token);
+const b64url = (buf) => Buffer.from(buf).toString('base64url');
+const sign = (payload) => createHmac('sha256', sessionSecret()).update(payload).digest('base64url');
+
+export function createSession(artistId) {
+  const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400000).toISOString();
+  const payload = b64url(JSON.stringify({ aid: artistId, exp: Date.parse(expiresAt) }));
+  return {
+    token: `${payload}.${sign(payload)}`,
+    expiresAt,
+    maxAge: SESSION_DAYS * 86400,
+  };
+}
+
+/** Stateless sessions have nothing to delete server-side; the caller clears the cookie. */
+export function destroySession() {}
+
+export function readSessionToken(token) {
+  if (typeof token !== 'string') return null;
+  const [payload, signature] = token.split('.');
+  if (!payload || !signature) return null;
+
+  const expected = Buffer.from(sign(payload));
+  const provided = Buffer.from(signature);
+  if (expected.length !== provided.length || !timingSafeEqual(expected, provided)) return null;
+
+  let claims;
+  try {
+    claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+  if (!Number.isInteger(claims?.aid) || !Number.isFinite(claims?.exp)) return null;
+  if (claims.exp <= Date.now()) return null;
+  return claims;
 }
 
 export function currentArtist(req) {
-  const token = parseCookies(req)[SESSION_COOKIE];
-  if (!token) return null;
-  const db = getDb();
-  const session = db.prepare('SELECT * FROM sessions WHERE token = ?').get(token);
-  if (!session) return null;
-  if (session.expires_at <= nowIso()) {
-    db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
-    return null;
-  }
-  return db.prepare('SELECT * FROM artists WHERE id = ?').get(session.artist_id) ?? null;
+  const claims = readSessionToken(parseCookies(req)[SESSION_COOKIE]);
+  if (!claims) return null;
+  return getDb().prepare('SELECT * FROM artists WHERE id = ?').get(claims.aid) ?? null;
 }
 
 export function requireArtist(req) {
