@@ -6,7 +6,7 @@ import {
   currentArtist, publicArtist, SESSION_COOKIE,
 } from '../auth.js';
 import { estimate, DETAIL_LEVELS, COLOR_MODES } from '../pricing.js';
-import { providerNames } from '../mailer.js';
+import { providerNames, splitAddress } from '../mailer.js';
 import { dispatchDue, MAX_SEND_ATTEMPTS } from '../messages.js';
 import * as service from '../service.js';
 
@@ -56,6 +56,9 @@ api.get('/api/health', async (req, res) => {
     mail: {
       provider: (process.env.INKFLOW_MAIL_PROVIDER || 'console').toLowerCase(),
       sender_configured: Boolean(process.env.INKFLOW_MAIL_FROM),
+      // The domain, not the address: it is on every message this app sends, and
+      // "which domain did I configure" is the first question a refused send raises.
+      sender_domain: splitAddress(process.env.INKFLOW_MAIL_FROM ?? '').address.split('@')[1] ?? null,
       key_configured: Boolean(process.env.INKFLOW_MAIL_KEY),
     },
     outbox: { pending: queue.pending, abandoned: queue.abandoned, sent: queue.sent },

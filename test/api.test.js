@@ -329,6 +329,12 @@ test('health reports how mail is configured, without leaking the key', async () 
     assert.equal(body.mail.provider, 'resend');
     assert.equal(body.mail.key_configured, true);
     assert.ok(!JSON.stringify(body).includes('super-secret-key'));
+
+    process.env.INKFLOW_MAIL_FROM = '"Atelier" <no-reply@studio.example>';
+    const withSender = await (await fetch(`${base}/api/health`)).json();
+    assert.equal(withSender.mail.sender_domain, 'studio.example');
+    // The local part is not published: only the domain is needed to diagnose.
+    assert.ok(!JSON.stringify(withSender).includes('no-reply@'));
   } finally {
     delete process.env.INKFLOW_MAIL_PROVIDER;
     delete process.env.INKFLOW_MAIL_KEY;
