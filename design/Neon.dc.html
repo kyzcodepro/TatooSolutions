@@ -1,0 +1,189 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@300;400;500&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #22d3ee; text-decoration: none; }
+    a:hover { color: #67e8f9; }
+
+    .stage { position: relative; width: 1440px; height: 900px; overflow: hidden;
+      background: #0a0710; color: #f6f2ff;
+      font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace; }
+
+    /* Night: a magenta haze over a receding floor, drifting slowly toward the viewer. */
+    .haze { position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(60% 45% at 50% 34%, rgba(255, 46, 136, 0.22), transparent 70%),
+        radial-gradient(45% 40% at 82% 78%, rgba(34, 211, 238, 0.16), transparent 72%);
+      animation: haze 11s ease-in-out infinite; }
+    @keyframes haze { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
+
+    .floor { position: absolute; left: -20%; right: -20%; bottom: 0; height: 300px;
+      background-image: linear-gradient(rgba(255, 46, 136, 0.5) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 46, 136, 0.32) 1px, transparent 1px);
+      background-size: 100% 46px, 74px 100%;
+      transform: perspective(340px) rotateX(66deg); transform-origin: 50% 100%;
+      mask-image: linear-gradient(to bottom, transparent, #000 45%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent, #000 45%);
+      animation: floor 3.4s linear infinite; }
+    @keyframes floor { to { background-position: 0 46px, 0 0; } }
+
+    .scan { position: absolute; left: 0; right: 0; height: 190px; pointer-events: none;
+      background: linear-gradient(to bottom, transparent, rgba(246, 242, 255, 0.05), transparent);
+      animation: scan 6.5s linear infinite; }
+    @keyframes scan { 0% { top: -200px; } 100% { top: 900px; } }
+
+    .nav { position: relative; display: flex; align-items: center; justify-content: space-between;
+      padding: 30px 56px; font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; }
+    .nav .links { display: flex; gap: 26px; }
+    .nav .links a { color: #9d92b8; }
+    .nav .links a:hover { color: #f6f2ff; }
+
+    .open { display: inline-flex; align-items: center; gap: 9px; color: #ff2e88;
+      text-shadow: 0 0 12px rgba(255, 46, 136, 0.9); animation: flickerSoft 4.2s steps(1) infinite; }
+    .open i { width: 7px; height: 7px; border-radius: 50%; background: #ff2e88; display: block;
+      box-shadow: 0 0 12px 3px rgba(255, 46, 136, 0.7); }
+    @keyframes flickerSoft { 0%, 96%, 100% { opacity: 1; } 97% { opacity: 0.25; } 98% { opacity: 1; } 99% { opacity: 0.4; } }
+
+    .center { position: relative; display: flex; flex-direction: column; align-items: center;
+      gap: 18px; padding-top: 96px; }
+
+    .kicker { font-size: 12px; letter-spacing: 0.42em; text-transform: uppercase; color: #9d92b8;
+      opacity: 0; animation: appear 0.8s ease forwards 0.2s; }
+    @keyframes appear { to { opacity: 1; } }
+
+    .tube { position: relative; height: 210px; }
+    .tube h1 { font-family: Anton, Impact, "Arial Narrow", sans-serif; font-weight: 400;
+      font-size: 186px; line-height: 1; letter-spacing: 0.02em; margin: 0; color: #fff0f7;
+      text-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 0 26px rgba(255, 46, 136, 0.95),
+        0 0 62px rgba(255, 46, 136, 0.75), 0 0 120px rgba(255, 46, 136, 0.45);
+      animation: tubeOn 5.5s steps(1) infinite; }
+    @keyframes tubeOn {
+      0%, 3%, 6%, 100% { opacity: 1; }
+      4% { opacity: 0.28; } 5% { opacity: 0.9; }
+      52% { opacity: 1; } 53% { opacity: 0.4; } 54% { opacity: 1; }
+    }
+    .tube .ghost { position: absolute; inset: 0; margin: 0; color: transparent; }
+    .tube .ghost.cy { text-shadow: 0 0 18px rgba(34, 211, 238, 0.9); animation: shiftA 3.2s steps(2) infinite; }
+    .tube .ghost.mg { text-shadow: 0 0 18px rgba(255, 46, 136, 0.75); animation: shiftB 2.7s steps(2) infinite; }
+    @keyframes shiftA { 0%, 92%, 100% { transform: none; clip-path: none; }
+      94% { transform: translate(-7px, 2px); clip-path: inset(18% 0 52% 0); }
+      96% { transform: translate(5px, -3px); clip-path: inset(58% 0 14% 0); } }
+    @keyframes shiftB { 0%, 90%, 100% { transform: none; clip-path: none; }
+      92% { transform: translate(6px, -2px); clip-path: inset(34% 0 40% 0); }
+      95% { transform: translate(-4px, 3px); clip-path: inset(66% 0 8% 0); } }
+
+    .tag { max-width: 34rem; text-align: center; color: #c3bad8; font-size: 16px; line-height: 1.7;
+      font-weight: 300; opacity: 0; animation: appear 0.9s ease forwards 0.75s; }
+    .tag b { color: #f6f2ff; font-weight: 500; }
+
+    .actions { display: flex; gap: 16px; margin-top: 12px; opacity: 0;
+      animation: appear 0.9s ease forwards 0.95s; }
+    .neon-btn { position: relative; padding: 16px 30px; border: 1px solid #ff2e88; border-radius: 2px;
+      color: #ffd9e9; font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase;
+      box-shadow: 0 0 18px rgba(255, 46, 136, 0.45), inset 0 0 18px rgba(255, 46, 136, 0.22);
+      animation: btnGlow 3.2s ease-in-out infinite; }
+    .neon-btn:hover { color: #fff; }
+    @keyframes btnGlow {
+      0%, 100% { box-shadow: 0 0 14px rgba(255, 46, 136, 0.35), inset 0 0 14px rgba(255, 46, 136, 0.18); }
+      50% { box-shadow: 0 0 34px rgba(255, 46, 136, 0.7), inset 0 0 22px rgba(255, 46, 136, 0.32); }
+    }
+    .wire-btn { padding: 16px 30px; border: 1px solid #2c2440; border-radius: 2px; color: #9d92b8;
+      font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase; }
+    .wire-btn:hover { color: #f6f2ff; border-color: #22d3ee; }
+
+    .rail { position: absolute; top: 300px; font-size: 11px; letter-spacing: 0.34em;
+      text-transform: uppercase; color: #4a4064; writing-mode: vertical-rl; }
+    .rail.l { left: 30px; } .rail.r { right: 30px; transform: rotate(180deg); }
+
+    .stats { position: absolute; left: 0; right: 0; bottom: 74px; display: flex; justify-content: center;
+      gap: 68px; opacity: 0; animation: appear 1s ease forwards 1.2s; }
+    .stat { text-align: center; }
+    .stat b { display: block; font-family: Anton, Impact, sans-serif; font-size: 40px; letter-spacing: 0.02em;
+      color: #22d3ee; text-shadow: 0 0 22px rgba(34, 211, 238, 0.6); }
+    .stat span { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #6e6390; }
+
+    .band { position: absolute; left: 0; right: 0; bottom: 0; height: 46px; display: flex; align-items: center;
+      border-top: 1px solid #221b33; background: rgba(10, 7, 16, 0.88); overflow: hidden; }
+    .track { display: flex; gap: 34px; white-space: nowrap; padding-left: 34px;
+      animation: slide 24s linear infinite; }
+    @keyframes slide { to { transform: translateX(-50%); } }
+    .track span { font-size: 11px; letter-spacing: 0.26em; text-transform: uppercase; color: #6e6390; }
+    .track b { color: #ff2e88; font-weight: 400; }
+
+    .motion-calme .haze, .motion-calme .floor, .motion-calme .scan, .motion-calme .track,
+    .motion-calme .open, .motion-calme .tube h1, .motion-calme .ghost, .motion-calme .neon-btn { animation: none; }
+    @media (prefers-reduced-motion: reduce) {
+      .haze, .floor, .scan, .track, .open, .tube h1, .ghost, .neon-btn { animation: none; }
+      .kicker, .tag, .actions, .stats { animation: none; opacity: 1; }
+    }
+  </style>
+</helmet>
+
+<div class="stage {{motionClass}}">
+  <div class="haze"></div>
+  <div class="floor"></div>
+
+  <nav class="nav">
+    <span style="color: #9d92b8;">Inkflow — Studio [VOTRE VILLE]</span>
+    <div class="links"><a href="#">Flash</a><a href="#">Projets</a><a href="#">Tarifs</a></div>
+    <span class="open"><i></i>Réservations ouvertes</span>
+  </nav>
+
+  <div class="center">
+    <span class="kicker">Prenez date · versez l'acompte · c'est bloqué</span>
+
+    <div class="tube">
+      <h1>INKFLOW</h1>
+      <h1 class="ghost cy" aria-hidden="true">INKFLOW</h1>
+      <h1 class="ghost mg" aria-hidden="true">INKFLOW</h1>
+    </div>
+
+    <p class="tag">
+      Le brief, le devis et l'acompte au même endroit. <b>Une date n'existe qu'une fois
+      l'acompte encaissé</b> — le reste du temps, elle est libre pour quelqu'un d'autre.
+    </p>
+
+    <div class="actions">
+      <a class="neon-btn" href="#">Réserver un créneau</a>
+      <a class="wire-btn" href="#">Voir le flash</a>
+    </div>
+  </div>
+
+  <span class="rail l">Encre · Aiguille · Rendez-vous</span>
+  <span class="rail r">Acompte 30 % · Annulation 48 h</span>
+
+  <div class="stats">
+    <div class="stat"><b>48 h</b><span>annulation libre</span></div>
+    <div class="stat"><b>30 %</b><span>acompte</span></div>
+    <div class="stat"><b>J-1</b><span>rappel automatique</span></div>
+  </div>
+
+  <div class="band">
+    <div class="track">
+      <span>Brief structuré</span><span><b>/</b></span><span>Devis ferme</span><span><b>/</b></span>
+      <span>Acompte en ligne</span><span><b>/</b></span><span>Suivi de cicatrisation</span><span><b>/</b></span>
+      <span>Brief structuré</span><span><b>/</b></span><span>Devis ferme</span><span><b>/</b></span>
+      <span>Acompte en ligne</span><span><b>/</b></span><span>Suivi de cicatrisation</span><span><b>/</b></span>
+    </div>
+  </div>
+
+  <div class="scan"></div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"motion":{"editor":"enum","options":["ample","calme"],"default":"ample","section":"Motion"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { motionClass: (this.props.motion ?? 'ample') === 'calme' ? 'motion-calme' : 'motion-ample' };
+  }
+}
+</script>
+</body>
+</html>

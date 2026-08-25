@@ -1,0 +1,14 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1440, "h": 900, "title": "A — Encre vivante" },
+    { "file": "Flash.dc.html", "x": 1560, "y": 0, "w": 1440, "h": 900, "title": "B — Planche de flash" },
+    { "file": "Neon.dc.html", "x": 3120, "y": 0, "w": 1440, "h": 900, "title": "C — Néon nocturne" }
+  ],
+  "annotations": [
+    { "id": "note-a", "x": 0, "y": -210, "w": 440, "text": "A — Encre vivante\nProlonge le produit existant : mêmes tokens que app.css (#0c0d10, accent #ff5c39, rayons 14/9px).\nLe motif se dessine tout seul en boucle, l'aiguille suit le trait.\nAtout : rien à refaire côté code, l'app et la vitrine parlent la même langue.\nCoût : c'est une évolution, pas une rupture — peu de choc visuel." },
+    { "id": "note-b", "x": 1560, "y": -210, "w": 440, "text": "B — Planche de flash\nPapier, Bodoni, encre oxblood. La planche EST la page : six pièces, prix ferme, tampon d'acompte.\nAtout : très haut de gamme, unique dans un secteur qui fait tout en sombre ; le prix affiché fait le tri avant le premier message.\nCoût : refonte complète des tokens, et le mode clair demande de retoucher tout le tableau de bord." },
+    { "id": "note-c", "x": 3120, "y": -210, "w": 440, "text": "C — Néon nocturne\nEnseigne au néon, glitch, sol en perspective. Le maximum d'animation des trois.\nAtout : mémorable, très identitaire, taillé pour Instagram.\nCoût : lisibilité et sérieux — un client qui verse 300 € d'acompte veut être rassuré. À réserver à la vitrine, jamais au tunnel de réservation." },
+    { "id": "note-motion", "x": 4700, "y": -210, "w": 380, "text": "Chaque planche a un réglage Motion (ample / calme) au-dessus de son cadre, et respecte prefers-reduced-motion : l'ambiance s'arrête, le dessin reste visible." }
+  ],
+  "launch": { "view": "canvas" }
+}

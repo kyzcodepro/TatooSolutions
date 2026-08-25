@@ -1,0 +1,246 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700&family=Karla:wght@300;400;600&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #8c2f28; text-decoration: none; }
+    a:hover { color: #5f1e19; }
+
+    .stage { position: relative; width: 1440px; height: 900px; overflow: hidden;
+      background: #f2ece1; color: #17130f; font-family: Karla, ui-sans-serif, system-ui, sans-serif; }
+
+    /* Paper: fibre grain plus an uneven press, so it reads printed rather than flat. */
+    .fibre { position: absolute; inset: 0; pointer-events: none; opacity: 0.5; mix-blend-mode: multiply;
+      background-image: radial-gradient(rgba(23, 19, 15, 0.13) 1px, transparent 1px),
+        radial-gradient(rgba(23, 19, 15, 0.08) 1px, transparent 1px);
+      background-size: 4px 4px, 7px 7px; background-position: 0 0, 2px 3px;
+      animation: fibre 1.4s steps(3) infinite; }
+    @keyframes fibre { 0% { transform: translate(0, 0); } 33% { transform: translate(-1px, 1px); }
+      66% { transform: translate(1px, -1px); } 100% { transform: translate(0, 0); } }
+    .press { position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(120% 90% at 30% 15%, rgba(255, 252, 246, 0.85), transparent 60%),
+        radial-gradient(90% 80% at 85% 95%, rgba(140, 47, 40, 0.09), transparent 65%); }
+
+    .bar { position: relative; display: flex; align-items: center; justify-content: space-between;
+      padding: 30px 66px 0; }
+    .smallcaps { font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; color: #6d6153; }
+    .bar-links { display: flex; gap: 26px; }
+    .bar-links a { font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: #6d6153; }
+    .bar-links a:hover { color: #17130f; }
+
+    .rule { position: relative; height: 1px; margin: 22px 66px 0; overflow: hidden; }
+    .rule::after { content: ""; position: absolute; inset: 0; width: 0;
+      background: repeating-linear-gradient(90deg, #17130f 0 7px, transparent 7px 14px);
+      animation: rule 1.8s cubic-bezier(0.16, 0.9, 0.24, 1) forwards 0.3s; }
+    @keyframes rule { to { width: 100%; } }
+
+    .main { position: relative; display: grid; grid-template-columns: 0.92fr 1.08fr;
+      gap: 54px; padding: 46px 66px 0; align-items: start; }
+
+    h1 { font-family: "Bodoni Moda", Didot, "Times New Roman", serif; font-weight: 500;
+      font-size: 78px; line-height: 0.95; letter-spacing: -0.02em; margin: 0; }
+    h1 em { font-style: italic; color: #8c2f28; }
+    .word { display: inline-block; opacity: 0; transform: translateY(22px) skewY(3deg);
+      animation: word 0.85s cubic-bezier(0.16, 0.9, 0.24, 1) forwards; }
+    @keyframes word { to { opacity: 1; transform: none; } }
+
+    .fade { opacity: 0; transform: translateY(14px); animation: word 0.9s ease forwards; }
+
+    .lede { max-width: 25rem; margin: 26px 0 0; font-weight: 300; font-size: 17px;
+      line-height: 1.7; color: #4a4034; animation-delay: 0.7s; }
+
+    .cta-row { display: flex; align-items: center; gap: 18px; margin-top: 32px; animation-delay: 0.85s; }
+    .cta { display: inline-flex; align-items: center; gap: 10px; padding: 15px 26px;
+      background: #17130f; color: #f2ece1; font-size: 14px; letter-spacing: 0.16em;
+      text-transform: uppercase; border-radius: 2px; }
+    .cta:hover { color: #f2ece1; background: #8c2f28; }
+    .underlined { font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase;
+      border-bottom: 1px solid #8c2f28; padding-bottom: 3px; }
+
+    .price-note { margin-top: 46px; padding-left: 18px; border-left: 2px solid #8c2f28;
+      animation-delay: 1s; }
+    .price-note b { font-family: "Bodoni Moda", serif; font-size: 26px; display: block; }
+    .price-note span { font-size: 13px; color: #6d6153; }
+
+    /* The sheet: six pieces on paper, each breathing on its own beat. */
+    .sheet { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+    .cell { position: relative; background: #fbf7ef; border: 1px solid #ded2bf; border-radius: 3px;
+      padding: 18px 16px 14px; display: flex; flex-direction: column; gap: 12px; align-items: center;
+      box-shadow: 0 1px 0 rgba(23, 19, 15, 0.06);
+      animation: sway 7s ease-in-out infinite; transform-origin: 50% 90%; }
+    .cell:nth-child(2) { animation-delay: 0.6s; } .cell:nth-child(3) { animation-delay: 1.2s; }
+    .cell:nth-child(4) { animation-delay: 1.8s; } .cell:nth-child(5) { animation-delay: 2.4s; }
+    .cell:nth-child(6) { animation-delay: 3s; }
+    @keyframes sway {
+      0%, 100% { transform: translateY(0) rotate(0deg); box-shadow: 0 1px 0 rgba(23, 19, 15, 0.06); }
+      50% { transform: translateY(-9px) rotate(-0.7deg); box-shadow: 0 14px 22px -16px rgba(23, 19, 15, 0.45); }
+    }
+    .cell svg path, .cell svg circle, .cell svg line { fill: none; stroke: #17130f; stroke-width: 1.5;
+      stroke-linecap: round; stroke-linejoin: round; }
+    .tag { display: flex; justify-content: space-between; width: 100%; align-items: baseline; }
+    .tag span { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6d6153; }
+    .tag b { font-family: "Bodoni Moda", serif; font-size: 17px; font-weight: 500; }
+
+    .stamp { position: absolute; right: -26px; top: -22px; width: 128px; height: 128px;
+      animation: thud 7.5s cubic-bezier(0.2, 1.4, 0.3, 1) infinite; transform-origin: 50% 50%; }
+    @keyframes thud {
+      0% { opacity: 0; transform: scale(2.3) rotate(-24deg); }
+      9% { opacity: 0.92; transform: scale(1) rotate(-12deg); }
+      12% { transform: scale(1.04) rotate(-12deg); }
+      16%, 82% { opacity: 0.92; transform: scale(1) rotate(-12deg); }
+      100% { opacity: 0; transform: scale(1) rotate(-12deg); }
+    }
+    .stamp circle, .stamp path { fill: none; stroke: #8c2f28; stroke-width: 2; }
+    .stamp text { fill: #8c2f28; font-family: Karla, sans-serif; font-size: 12px;
+      letter-spacing: 0.2em; text-transform: uppercase; }
+
+    .band { position: absolute; left: 0; right: 0; bottom: 0; height: 54px; display: flex; align-items: center;
+      border-top: 1px solid #ded2bf; background: #ebe3d5; overflow: hidden; }
+    .track { display: flex; gap: 38px; white-space: nowrap; padding-left: 38px;
+      animation: slide 34s linear infinite; }
+    @keyframes slide { to { transform: translateX(-50%); } }
+    .track span { font-size: 12px; letter-spacing: 0.28em; text-transform: uppercase; color: #6d6153; }
+
+    .motion-calme .fibre, .motion-calme .cell, .motion-calme .stamp, .motion-calme .track { animation: none; }
+    .motion-calme .stamp { opacity: 0.92; transform: rotate(-12deg); }
+    @media (prefers-reduced-motion: reduce) {
+      .fibre, .cell, .stamp, .track { animation: none; }
+      .stamp { opacity: 0.92; transform: rotate(-12deg); }
+      .word, .fade { animation: none; opacity: 1; transform: none; }
+      .rule::after { animation: none; width: 100%; }
+    }
+  </style>
+</helmet>
+
+<div class="stage {{motionClass}}">
+  <div class="press"></div>
+
+  <div class="bar">
+    <span class="smallcaps">Inkflow — planche N&#186; 12</span>
+    <div class="bar-links">
+      <a href="#">Studio</a><a href="#">Flash</a><a href="#">Tarifs</a><a href="#">Réserver</a>
+    </div>
+  </div>
+  <div class="rule"></div>
+
+  <div class="main">
+    <div>
+      <h1>
+        <span class="word" style="animation-delay: 0.15s;">Choisissez</span>
+        <span class="word" style="animation-delay: 0.28s;">votre</span>
+        <span class="word" style="animation-delay: 0.41s;"><em>pièce.</em></span>
+        <span class="word" style="animation-delay: 0.54s;">La date</span>
+        <span class="word" style="animation-delay: 0.67s;">se bloque</span>
+        <span class="word" style="animation-delay: 0.8s;">à l'acompte.</span>
+      </h1>
+
+      <p class="lede fade">
+        Chaque motif porte son prix ferme et sa durée. Le client choisit, verse
+        l'acompte, et le créneau sort du calendrier — sans un seul message échangé.
+      </p>
+
+      <div class="cta-row fade">
+        <a class="cta" href="#">Voir la planche</a>
+        <a class="underlined" href="#">Projet sur mesure</a>
+      </div>
+
+      <div class="price-note fade">
+        <b>Acompte 30 %</b>
+        <span>conservé si annulation à moins de 48 h</span>
+      </div>
+    </div>
+
+    <div class="sheet">
+      <div class="cell">
+        <svg width="112" height="112" viewBox="0 0 112 112" role="img" aria-label="Dague">
+          <path d="M56 12 L64 40 L56 96 L48 40 Z"></path>
+          <path d="M34 40 h44 M56 40 v10"></path>
+          <path d="M50 22 h12"></path>
+        </svg>
+        <div class="tag"><span>Dague</span><b>140 €</b></div>
+      </div>
+
+      <div class="cell">
+        <svg width="112" height="112" viewBox="0 0 112 112" role="img" aria-label="Papillon de nuit">
+          <path d="M56 34 C 34 18 12 30 18 52 C 24 72 44 74 56 62 C 68 74 88 72 94 52 C 100 30 78 18 56 34 Z"></path>
+          <path d="M56 34 v52 M50 92 l6 -6 l6 6"></path>
+          <path d="M50 30 l -4 -12 M62 30 l 4 -12"></path>
+        </svg>
+        <div class="tag"><span>Papillon</span><b>220 €</b></div>
+      </div>
+
+      <div class="cell">
+        <svg width="112" height="112" viewBox="0 0 112 112" role="img" aria-label="Serpent">
+          <path d="M22 88 C 44 78 26 58 48 50 C 70 42 66 24 88 26"></path>
+          <path d="M88 26 c 8 0 12 6 10 12 c -2 6 -10 8 -14 4"></path>
+          <path d="M84 42 l 8 6 m -8 -6 l 9 -1"></path>
+          <circle cx="90" cy="32" r="1.6"></circle>
+        </svg>
+        <div class="tag"><span>Serpent</span><b>260 €</b></div>
+      </div>
+
+      <div class="cell">
+        <svg width="112" height="112" viewBox="0 0 112 112" role="img" aria-label="Rose">
+          <path d="M56 74 C 34 62 32 34 56 26 C 80 34 78 62 56 74 Z"></path>
+          <path d="M56 62 C 44 56 44 40 56 36 C 68 40 68 56 56 62 Z"></path>
+          <path d="M56 50 c -5 -3 -5 -9 0 -11 c 5 2 5 8 0 11 Z"></path>
+          <path d="M56 74 v18 M56 84 c -10 0 -16 -6 -16 -12 c 10 -2 16 4 16 12 Z"></path>
+        </svg>
+        <div class="tag"><span>Rose</span><b>190 €</b></div>
+      </div>
+
+      <div class="cell">
+        <svg width="112" height="112" viewBox="0 0 112 112" role="img" aria-label="Main et œil">
+          <path d="M36 88 V52 c 0 -6 8 -6 8 0 v -14 c 0 -6 8 -6 8 0 v 12 v -18 c 0 -6 8 -6 8 0 v 18 v -10 c 0 -6 8 -6 8 0 v 26 c 0 14 -8 22 -18 22 h -6 c -6 0 -8 -4 -8 -8 Z"></path>
+          <path d="M44 62 c 6 -8 18 -8 24 0 c -6 8 -18 8 -24 0 Z"></path>
+          <circle cx="56" cy="62" r="2.4"></circle>
+        </svg>
+        <div class="tag"><span>Main</span><b>310 €</b></div>
+      </div>
+
+      <div class="cell">
+        <svg width="112" height="112" viewBox="0 0 112 112" role="img" aria-label="Croissant de lune et étoile">
+          <path d="M66 20 a34 34 0 1 0 0 68 a26 26 0 1 1 0 -68 Z"></path>
+          <path d="M78 34 l3 8 l8 3 l-8 3 l-3 8 l-3 -8 l-8 -3 l8 -3 Z"></path>
+        </svg>
+        <div class="tag"><span>Lune</span><b>120 €</b></div>
+        <svg class="stamp" viewBox="0 0 128 128" aria-hidden="true">
+          <circle cx="64" cy="64" r="52"></circle>
+          <circle cx="64" cy="64" r="44"></circle>
+          <path d="M22 64 h84"></path>
+          <text x="64" y="54" text-anchor="middle">Acompte</text>
+          <text x="64" y="86" text-anchor="middle">Reçu</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="band">
+    <div class="track">
+      <span>Flash disponible</span><span>—</span><span>Prix ferme affiché</span><span>—</span>
+      <span>Acompte en ligne</span><span>—</span><span>Rappel J-1</span><span>—</span>
+      <span>Flash disponible</span><span>—</span><span>Prix ferme affiché</span><span>—</span>
+      <span>Acompte en ligne</span><span>—</span><span>Rappel J-1</span><span>—</span>
+    </div>
+  </div>
+
+  <div class="fibre"></div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"motion":{"editor":"enum","options":["ample","calme"],"default":"ample","section":"Motion"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { motionClass: (this.props.motion ?? 'ample') === 'calme' ? 'motion-calme' : 'motion-ample' };
+  }
+}
+</script>
+</body>
+</html>

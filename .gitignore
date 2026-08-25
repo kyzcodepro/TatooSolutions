@@ -5,3 +5,7 @@ data/
 .env
 .DS_Store
 public/build.json
+
+# Canvas de design : sortie assemblée (2,5 Mo, régénérée depuis design/*.dc.html)
+design/*.html
+!design/*.dc.html
