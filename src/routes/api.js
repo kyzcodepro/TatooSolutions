@@ -30,7 +30,15 @@ api.get('/api/ping', async (req, res) => {
 api.get('/api/health', async (req, res) => {
   const db = await getDb();
   const { count } = await db.get('SELECT COUNT(*) AS count FROM artists');
-  const pending = await db.get('SELECT COUNT(*) AS count FROM messages WHERE sent_at IS NULL');
+  // "Pending" has to mean "still going to be tried". Counting abandoned messages
+  // as pending leaves a number that can never come down.
+  const queue = await db.get(`
+    SELECT
+      COALESCE(SUM(CASE WHEN sent_at IS NULL AND attempts < ? THEN 1 ELSE 0 END), 0) AS pending,
+      COALESCE(SUM(CASE WHEN sent_at IS NULL AND attempts >= ? THEN 1 ELSE 0 END), 0) AS abandoned,
+      COALESCE(SUM(CASE WHEN sent_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS sent
+    FROM messages
+  `, [MAX_SEND_ATTEMPTS, MAX_SEND_ATTEMPTS]);
   json(res, 200, {
     status: 'ok',
     node: process.version,
@@ -50,7 +58,7 @@ api.get('/api/health', async (req, res) => {
       sender_configured: Boolean(process.env.INKFLOW_MAIL_FROM),
       key_configured: Boolean(process.env.INKFLOW_MAIL_KEY),
     },
-    pending_messages: pending.count,
+    outbox: { pending: queue.pending, abandoned: queue.abandoned, sent: queue.sent },
     time: nowIso(),
   });
 });

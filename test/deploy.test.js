@@ -93,6 +93,10 @@ test('/api/health reports how the deployment is wired', async () => {
   assert.equal(body.database.location, process.env.INKFLOW_DB);
   assert.ok(body.database.artists >= 1, 'the demo studio is present');
   assert.equal(typeof body.sessions.signing_key_configured, 'boolean');
+  // A message given up on is not waiting for anything: it must not read as pending.
+  assert.equal(typeof body.outbox.pending, 'number');
+  assert.equal(typeof body.outbox.abandoned, 'number');
+  assert.equal(typeof body.outbox.sent, 'number');
   assert.ok(!JSON.stringify(body).includes(process.env.INKFLOW_SECRET ?? 'nothing-set'),
     'health never echoes the signing key');
 });
