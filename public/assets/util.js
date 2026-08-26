@@ -115,7 +115,6 @@ export const STATUS_LABELS = {
 
 export const statusBadge = (status) => `<span class="badge badge-${esc(status)}">${esc(STATUS_LABELS[status] ?? status)}</span>`;
 
-/** Turns a datetime-local value into an ISO string, and back. */
 /**
  * <input type="datetime-local"> speaks wall clock with no zone attached, and the
  * browser assumes its own. An artist away from the studio would then block, or

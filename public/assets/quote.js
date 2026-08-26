@@ -30,7 +30,10 @@ async function load({ silent = false } = {}) {
   }
 }
 
-const STEP_INDEX = { new: 1, quoted: 2, booked: 3, completed: 3, declined: 1, expired: 2 };
+const STEP_INDEX = {
+  new: 1, quoted: 2, booked: 3, completed: 3,
+  declined: 1, expired: 2, cancelled: 3, no_show: 3,
+};
 
 function render() {
   const { artist, request, appointment } = state;
@@ -73,7 +76,8 @@ function render() {
 
   if (request.status === 'declined') {
     el('headline').textContent = 'Projet non retenu';
-    el('subline').textContent = `${artist.studio_name} ne peut pas prendre ce projet.`;
+    el('subline').textContent = `${artist.studio_name} ne peut pas prendre ce projet.`
+      + (request.decline_reason ? ` Motif : ${request.decline_reason}` : '');
     panel.innerHTML = brief;
     return;
   }
@@ -121,6 +125,25 @@ function render() {
       </div>
       ${brief}`;
     el('accept').addEventListener('click', accept);
+    return;
+  }
+
+  // A cancelled or missed session used to fall through to the booked branch, so the
+  // page cheerfully announced a rendez-vous that no longer existed.
+  if (request.status === 'cancelled') {
+    el('headline').textContent = 'Séance annulée';
+    el('subline').textContent = `${artist.studio_name} a annulé cette séance.`
+      + (request.decline_reason ? ` Motif : ${request.decline_reason}` : '')
+      + ' Écrivez au studio pour reprendre une date.';
+    panel.innerHTML = brief;
+    return;
+  }
+
+  if (request.status === 'no_show') {
+    el('headline').textContent = 'Séance manquée';
+    el('subline').textContent = `La séance n'a pas eu lieu et l'acompte est resté acquis au studio, `
+      + `comme prévu dans les conditions. Pour reprendre rendez-vous, passez par la page de ${artist.studio_name}.`;
+    panel.innerHTML = brief;
     return;
   }
 

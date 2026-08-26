@@ -17,7 +17,15 @@ import {
   cancelPendingMessages, queueMessage,
 } from './messages.js';
 
-export const REQUEST_STATUSES = ['new', 'quoted', 'booked', 'completed', 'declined', 'expired'];
+// A project ends in one of five ways, and they are not the same thing: refused by
+// the artist, left to expire, cancelled after the deposit was paid, paid for and
+// not turned up to, or done. Collapsing the last three into "declined" — which is
+// what this used to do — makes the inbox lie and the conversion rate wrong.
+export const REQUEST_STATUSES = [
+  'new', 'quoted', 'booked', 'completed', 'declined', 'expired', 'cancelled', 'no_show',
+];
+/** Statuses that only follow a deposit actually being collected. */
+export const CONVERTED_STATUSES = ['booked', 'completed', 'cancelled', 'no_show'];
 const OPEN_STATUSES = ['new', 'quoted'];
 
 export function hydrateRequest(row, artist = null) {
@@ -191,6 +199,7 @@ export async function quoteView(token) {
       proposed_start: request.proposed_start,
       proposed_end: request.proposed_end,
       artist_note: request.artist_note,
+      decline_reason: request.decline_reason,
       quote_expires_at: request.quote_expires_at,
       deposit_paid_at: request.deposit_paid_at,
     },
@@ -381,6 +390,7 @@ export async function markNoShow(artist, appointmentId) {
   const appointment = await getAppointmentOwned(artist.id, appointmentId);
   if (appointment.status !== 'scheduled') throw conflict(`Appointment is already "${appointment.status}"`);
   await db.run("UPDATE appointments SET status = 'no_show', updated_at = ? WHERE id = ?", [nowIso(), appointment.id]);
+  await db.run("UPDATE requests SET status = 'no_show', updated_at = ? WHERE id = ?", [nowIso(), appointment.request_id]);
   await cancelPendingMessages(appointment.id);
   const request = await db.get('SELECT * FROM requests WHERE id = ?', [appointment.request_id]);
   await queueMessage({
@@ -424,7 +434,9 @@ export async function cancelAppointment(artist, appointmentId, { refundDeposit =
   const appointment = await getAppointmentOwned(artist.id, appointmentId);
   if (appointment.status !== 'scheduled') throw conflict('Only a scheduled appointment can be cancelled');
   await db.run("UPDATE appointments SET status = 'cancelled', updated_at = ? WHERE id = ?", [nowIso(), appointment.id]);
-  await db.run("UPDATE requests SET status = 'declined', decline_reason = ?, updated_at = ? WHERE id = ?",
+  // Cancelled, not declined: the client did book, and did pay. decline_reason is
+  // the column that holds why a project ended, whichever way it ended.
+  await db.run("UPDATE requests SET status = 'cancelled', decline_reason = ?, updated_at = ? WHERE id = ?",
     [reason || 'Séance annulée', nowIso(), appointment.request_id]);
   await cancelPendingMessages(appointment.id);
   const request = await db.get('SELECT * FROM requests WHERE id = ?', [appointment.request_id]);
@@ -523,7 +535,9 @@ export async function stats(artistId, { days = 90 } = {}) {
   `, [artistId, nowIso()]);
 
   const noShowRate = finished ? count('no_show') / finished : 0;
-  const bookedRequests = (byStatus.booked ?? 0) + (byStatus.completed ?? 0);
+  // Conversion is "did this request end in a paid deposit", so a session later
+  // cancelled or missed still counts: the money did move.
+  const bookedRequests = CONVERTED_STATUSES.reduce((sum, status) => sum + (byStatus[status] ?? 0), 0);
 
   return {
     window_days: days,
@@ -531,6 +545,7 @@ export async function stats(artistId, { days = 90 } = {}) {
     conversion_rate: totalRequests ? bookedRequests / totalRequests : 0,
     no_show_rate: noShowRate,
     no_shows: count('no_show'),
+    cancelled: count('cancelled'),
     completed: count('completed'),
     revenue_completed_cents: apptByStatus.completed?.revenue ?? 0,
     deposits_kept_cents: apptByStatus.no_show?.deposits ?? 0,

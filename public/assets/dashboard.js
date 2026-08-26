@@ -8,9 +8,13 @@ const MAX_SESSION_HOURS = 6;
 let artist = null;
 let filter = 'open';
 
+// Two of these are groupings the API has no single status for, so they are
+// filtered here: "à traiter" is what still needs the artist, "sans suite" is
+// everything that ended without a session — refused, expired, cancelled, missed.
+const CLOSED_STATUSES = ['declined', 'expired', 'cancelled', 'no_show'];
 const FILTERS = [
   ['open', 'À traiter'], ['new', 'Nouvelles'], ['quoted', 'Devis envoyés'],
-  ['booked', 'Réservées'], ['completed', 'Terminées'], ['declined', 'Refusées'], ['', 'Toutes'],
+  ['booked', 'Réservées'], ['completed', 'Terminées'], ['closed', 'Sans suite'], ['', 'Toutes'],
 ];
 
 boot();
@@ -115,7 +119,9 @@ async function loadStats() {
     ['Acomptes encaissés', money(stats.upcoming.deposits_held_cents, artist.currency), 'sur les séances à venir'],
     ['CA réalisé (90 j)', money(stats.revenue_completed_cents, artist.currency), `${stats.completed} séance(s)`],
     ['Taux de no-show', percent(stats.no_show_rate), `${stats.no_shows} no-show · ${money(stats.deposits_kept_cents, artist.currency)} conservés`, stats.no_show_rate > 0.1 ? 'var(--danger)' : 'var(--ok)'],
-    ['Conversion', percent(stats.conversion_rate), 'demandes → réservations'],
+    ['Conversion', percent(stats.conversion_rate), stats.cancelled
+      ? `demandes → acompte versé · ${stats.cancelled} annulée(s)`
+      : 'demandes → acompte versé'],
   ];
   el('stats').innerHTML = tiles.map(([label, value, sub, color]) => `
     <div class="stat">
@@ -128,9 +134,12 @@ async function loadStats() {
 /* ------------------------------------------------------------------ requests */
 
 async function loadRequests() {
-  const query = filter && filter !== 'open' ? `?status=${filter}` : '';
+  const grouped = filter === 'open' || filter === 'closed';
+  const query = filter && !grouped ? `?status=${filter}` : '';
   const { requests } = await api('GET', `/api/requests${query}`);
-  const list = filter === 'open' ? requests.filter((r) => r.status === 'new' || r.status === 'quoted') : requests;
+  const list = filter === 'open' ? requests.filter((r) => r.status === 'new' || r.status === 'quoted')
+    : filter === 'closed' ? requests.filter((r) => CLOSED_STATUSES.includes(r.status))
+      : requests;
 
   const waiting = requests.filter((r) => r.status === 'new').length;
   el('inbox-count').textContent = waiting || '';
