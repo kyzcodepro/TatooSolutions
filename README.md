@@ -19,6 +19,7 @@ brief structuré → estimation automatique → devis + acompte → date bloqué
 | « Ça coûte combien ? » sans aucun détail | Formulaire de brief : taille, zone, rendu, niveau de détail, cover-up, références, budget, disponibilités |
 | Projets hors budget découverts au 3ᵉ message | L'écart entre le budget annoncé et la fourchette est calculé et affiché des deux côtés |
 | Doubles réservations, congés oubliés | Chevauchements refusés côté serveur, périodes bloquables |
+| Dates proposées à l'aveugle | Horaires d'ouverture par jour, fuseau du studio, délai minimum : le devis se remplit en cliquant un créneau réellement libre |
 | Oublis de rendez-vous | Rappels automatiques J-7, à la limite d'annulation, et J-1 |
 | Demandes vues trop tard | L'artiste est prévenu par email à chaque brief et à chaque acompte, avec de quoi trancher sans ouvrir l'app |
 | Devis oubliés | Balayage automatique : un devis dépassé libère le créneau, le client et l'artiste sont prévenus |
@@ -29,7 +30,7 @@ brief structuré → estimation automatique → devis + acompte → date bloqué
 ```bash
 npm run seed     # crée le studio de démo « Atelier Noir » et son historique
 npm start        # http://localhost:3000
-npm test         # 89 tests (estimation, API, serverless, libSQL, envoi, paiement)
+npm test         # 99 tests (estimation, API, serverless, libSQL, envoi, paiement)
 ```
 
 Compte de démonstration : **demo@inkflow.app** / **demotattoo**
@@ -108,6 +109,24 @@ explication ne se discute pas, et ne se croit pas non plus.
 Les studios configurés avant ce changement gardent exactement leurs prix : leur
 pièce de référence vaut ce que leur taux horaire facturait pour elle.
 
+## Disponibilités
+
+Le studio déclare sa semaine (sept jours, ouvert/fermé et une plage horaire), son
+fuseau et un délai minimum avant le premier créneau proposé. De là, `/api/slots`
+sort les créneaux où une séance de la durée voulue tient réellement : jour
+ouvert, dans la plage, libre de toute séance et de tout congé.
+
+Le composeur de devis les affiche : l'artiste clique une date au lieu d'en taper
+une et de découvrir le conflit après. Proposer un créneau hors horaires reste
+possible, mais devient un acte délibéré — le serveur refuse tant que l'exception
+n'est pas confirmée.
+
+Les horaires sont des heures locales, le stockage est en UTC, et les deux ne
+coïncident pas deux fois par an : la conversion demande au fuseau quel était son
+décalage **à cet instant précis** plutôt que d'en supposer un. Le dernier
+dimanche de mars, 11 h à Paris n'est pas l'instant qu'il était la veille, et les
+tests le vérifient dans les deux sens.
+
 ## Architecture
 
 ```
@@ -119,6 +138,7 @@ src/
   routes/api.js  endpoints JSON (auth, public, boîte artiste, agenda, stats)
   service.js     règles métier : devis, acompte, agenda, no-show, statistiques
   pricing.js     moteur d'estimation (pur, testé isolément)
+  availability.js horaires d'ouverture, fuseau et créneaux proposables
   messages.js    file d'envoi : confirmations, rappels, cicatrisation
   payments.js    acomptes : Stripe Checkout + vérification de signature, ou mock
   mailer.js      envoi réel : Resend, Postmark, Brevo, ou console

@@ -4,6 +4,7 @@ import {
 } from './util.js';
 
 const el = (id) => document.getElementById(id);
+const MAX_SESSION_HOURS = 6;
 let artist = null;
 let filter = 'open';
 
@@ -179,7 +180,10 @@ function openQuoteModal(request) {
   const currency = artist.currency;
   const suggestedPrice = euros(Math.round((request.estimate_low_cents + request.estimate_high_cents) / 2));
   const price = request.quote_price_cents ? euros(request.quote_price_cents) : suggestedPrice;
-  const hours = request.estimated_hours || 2;
+  // What gets booked is the first session, not the whole project: the server caps
+  // a slot at six hours, so proposing twenty would search for a day that does not
+  // exist and offer nothing.
+  const hours = Math.min(request.estimated_hours || 2, MAX_SESSION_HOURS);
 
   const host = el('modal-host');
   host.innerHTML = `
@@ -194,10 +198,14 @@ function openQuoteModal(request) {
           <div><label for="q-price">Prix ferme (€)</label><input id="q-price" type="number" min="5" step="5" value="${price}"></div>
           <div><label for="q-deposit">Acompte (€)</label><input id="q-deposit" type="number" min="0" step="5" value="${Math.round(price * artist.deposit_percent / 100 / 5) * 5}"></div>
         </div>
+        <div class="field">
+          <label>Prochaines disponibilités</label>
+          <div class="slot-list" id="q-slots"><span class="faint" style="font-size:.85rem">Recherche…</span></div>
+        </div>
         <div class="field-row">
           <div><label for="q-start">Créneau proposé</label><input id="q-start" type="datetime-local" value="${toLocalInput(request.proposed_start ?? nextWeek())}"></div>
           <div><label for="q-hours">Durée de la séance (h)</label><input id="q-hours" type="number" min="0.5" step="0.5" value="${hours}">
-            <p class="hint">Un créneau est plafonné à 6 h ; au-delà, prévoyez une seconde séance.</p></div>
+            <p class="hint">Durée de cette séance — plafonnée à 6 h ; au-delà, prévoyez-en une seconde.</p></div>
         </div>
         <div class="field"><label for="q-note">Mot pour le client</label>
           <textarea id="q-note" maxlength="1000" style="min-height:80px" placeholder="On commence par la ligne, une seconde séance pour l'ombrage.">${esc(request.artist_note ?? '')}</textarea></div>
@@ -221,18 +229,14 @@ function openQuoteModal(request) {
     el('q-deposit').value = Math.round(value * artist.deposit_percent / 100 / 5) * 5;
   });
 
+  loadSlots(Number(el('q-hours').value));
+  el('q-hours').addEventListener('change', (event) => loadSlots(Number(event.target.value)));
+
   el('q-send').addEventListener('click', async () => {
     const button = el('q-send');
     button.disabled = true;
     try {
-      await api('POST', `/api/requests/${request.id}/quote`, {
-        price_cents: Math.round(Number(el('q-price').value) * 100),
-        deposit_cents: Math.round(Number(el('q-deposit').value) * 100),
-        proposed_start: toIso(el('q-start').value),
-        duration_hours: Number(el('q-hours').value),
-        note: el('q-note').value,
-        expires_in_days: Number(el('q-expires').value),
-      });
+      await sendQuote(request, false);
       close();
       toast('Devis envoyé. Le créneau se bloque à la réception de l\'acompte.');
       await Promise.all([loadRequests(), loadStats(), loadMessages()]);
@@ -241,6 +245,56 @@ function openQuoteModal(request) {
       button.disabled = false;
     }
   });
+}
+
+/**
+ * The slots this piece actually fits into: open days, free of sessions and
+ * closed periods, past the studio's lead time. Proposing a date used to mean
+ * typing one blind and discovering the clash afterwards.
+ */
+async function loadSlots(hours) {
+  const host = el('q-slots');
+  if (!host) return;
+  try {
+    const wanted = Math.min(Math.max(Number(hours) || 2, 0.5), MAX_SESSION_HOURS);
+    // Six is enough to choose from; a wall of dates is not a decision aid.
+    const { slots } = await api('GET', `/api/slots?hours=${encodeURIComponent(wanted)}&limit=6`);
+    if (!slots.length) {
+      host.innerHTML = '<span class="faint" style="font-size:.85rem">Aucun créneau libre sur les 4 prochaines semaines — '
+        + 'élargissez vos horaires ou proposez une date à la main.</span>';
+      return;
+    }
+    host.innerHTML = slots.map((slot) => `<button type="button" class="slot" data-start="${esc(slot.starts_at)}">${esc(dateTime(slot.starts_at))}</button>`).join('');
+    host.querySelectorAll('.slot').forEach((button) => {
+      button.addEventListener('click', () => {
+        el('q-start').value = toLocalInput(button.dataset.start);
+        host.querySelectorAll('.slot').forEach((other) => other.setAttribute('aria-pressed', String(other === button)));
+      });
+    });
+  } catch (err) {
+    host.innerHTML = `<span class="faint" style="font-size:.85rem">${esc(err.message)}</span>`;
+  }
+}
+
+/** An out-of-hours slot is allowed, but only as a deliberate exception. */
+async function sendQuote(request, outsideHours) {
+  try {
+    return await api('POST', `/api/requests/${request.id}/quote`, {
+        price_cents: Math.round(Number(el('q-price').value) * 100),
+        deposit_cents: Math.round(Number(el('q-deposit').value) * 100),
+        proposed_start: toIso(el('q-start').value),
+        duration_hours: Number(el('q-hours').value),
+      note: el('q-note').value,
+      expires_in_days: Number(el('q-expires').value),
+      outside_hours: outsideHours,
+    });
+  } catch (err) {
+    if (!outsideHours && /opening hours/.test(err.message)) {
+      if (!confirm('Ce créneau est en dehors de vos horaires d\'ouverture. L\'envoyer quand même ?')) throw err;
+      return sendQuote(request, true);
+    }
+    throw err;
+  }
 }
 
 function nextWeek() {
@@ -391,6 +445,29 @@ function outboxState(message) {
 
 /* ----------------------------------------------------------------- settings */
 
+const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+
+function renderHoursEditor(workingHours) {
+  el('hours-editor').innerHTML = workingHours.map((day, index) => `
+    <div class="hours-row${day.open ? '' : ' closed'}" data-day="${index}">
+      <label class="check"><input type="checkbox" data-hours="open" ${day.open ? 'checked' : ''}>
+        <span>${DAY_NAMES[index]}</span></label>
+      <input type="time" data-hours="from" value="${esc(day.from)}" aria-label="Ouverture ${DAY_NAMES[index]}">
+      <input type="time" data-hours="to" value="${esc(day.to)}" aria-label="Fermeture ${DAY_NAMES[index]}">
+    </div>`).join('');
+
+  el('hours-editor').addEventListener('change', (event) => {
+    const row = event.target.closest('.hours-row');
+    if (row) row.classList.toggle('closed', !row.querySelector('[data-hours="open"]').checked);
+  });
+}
+
+const collectHours = () => [...document.querySelectorAll('#hours-editor .hours-row')].map((row) => ({
+  open: row.querySelector('[data-hours="open"]').checked,
+  from: row.querySelector('[data-hours="from"]').value || '11:00',
+  to: row.querySelector('[data-hours="to"]').value || '19:00',
+}));
+
 function wireSettings() {
   el('set-studio').value = artist.studio_name;
   el('set-city').value = artist.city;
@@ -401,6 +478,9 @@ function wireSettings() {
   el('set-deposit').value = artist.deposit_percent;
   el('set-cancel').value = artist.cancellation_hours;
   el('set-accepting').checked = artist.accepting_requests;
+  el('set-timezone').value = artist.timezone;
+  el('set-lead').value = artist.lead_hours;
+  renderHoursEditor(artist.working_hours);
 
   el('settings-form').addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -415,6 +495,9 @@ function wireSettings() {
         deposit_percent: Number(el('set-deposit').value),
         cancellation_hours: Number(el('set-cancel').value),
         accepting_requests: el('set-accepting').checked,
+        working_hours: collectHours(),
+        timezone: el('set-timezone').value.trim() || 'Europe/Paris',
+        lead_hours: Number(el('set-lead').value),
       });
       artist = updated;
       renderHeader();

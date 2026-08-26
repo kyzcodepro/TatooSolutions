@@ -94,7 +94,7 @@ test('the whole funnel runs on libSQL', async () => {
   assert.equal(typeof request.id, 'number');
 
   const quoted = await artistCall('POST', `/api/requests/${request.id}/quote`, {
-    price_cents: 55000, proposed_start: inDays(11, 9), duration_hours: 4,
+    outside_hours: true, price_cents: 55000, proposed_start: inDays(11, 9), duration_hours: 4,
   });
   assert.equal(quoted.status, 200);
   assert.equal(quoted.data.request.deposit_cents, 16500);
@@ -112,7 +112,7 @@ test('the whole funnel runs on libSQL', async () => {
   });
   const other = (await artistCall('GET', '/api/requests?status=new')).data.requests[0];
   const clash = await artistCall('POST', `/api/requests/${other.id}/quote`, {
-    price_cents: 20000, proposed_start: inDays(11, 10), duration_hours: 2,
+    outside_hours: true, price_cents: 20000, proposed_start: inDays(11, 10), duration_hours: 2,
   });
   assert.equal(clash.status, 409);
 

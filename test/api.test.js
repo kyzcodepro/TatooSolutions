@@ -102,7 +102,7 @@ test('full funnel: brief -> quote -> deposit -> booked -> completed -> aftercare
 
   const start = inDays(10, 9);
   const quoted = await call('POST', `/api/requests/${requestId}/quote`, {
-    price_cents: 55000, proposed_start: start, duration_hours: 4, note: 'Prévoir 4 h, on fait la ligne d\'abord.',
+    outside_hours: true, price_cents: 55000, proposed_start: start, duration_hours: 4, note: 'Prévoir 4 h, on fait la ligne d\'abord.',
   });
   assert.equal(quoted.status, 200);
   assert.equal(quoted.data.request.status, 'quoted');
@@ -151,7 +151,7 @@ test('a no-show keeps the deposit and shows up in the stats', async () => {
   const token = created.data.request.public_token;
   const requestId = (await call('GET', '/api/requests')).data.requests[0].id;
   await call('POST', `/api/requests/${requestId}/quote`, {
-    price_cents: 40000, proposed_start: inDays(3, 14), duration_hours: 3,
+    outside_hours: true, price_cents: 40000, proposed_start: inDays(3, 14), duration_hours: 3,
   });
   const { data } = await clientCall('POST', `/api/public/quotes/${token}/accept`);
 
@@ -171,7 +171,7 @@ test('double booking and blocked periods are refused', async () => {
   const first = client();
   const c1 = await first('POST', `/api/public/artists/${artist.slug}/requests`, brief());
   const id1 = (await call('GET', '/api/requests?status=new')).data.requests[0].id;
-  await call('POST', `/api/requests/${id1}/quote`, { price_cents: 30000, proposed_start: start, duration_hours: 3 });
+  await call('POST', `/api/requests/${id1}/quote`, { outside_hours: true, price_cents: 30000, proposed_start: start, duration_hours: 3 });
   await first('POST', `/api/public/quotes/${c1.data.request.public_token}/accept`);
 
   // Same slot, another client: the artist cannot even send the quote.
@@ -179,7 +179,7 @@ test('double booking and blocked periods are refused', async () => {
   await second('POST', `/api/public/artists/${artist.slug}/requests`, brief({ client_email: 'b@example.test' }));
   const id2 = (await call('GET', '/api/requests?status=new')).data.requests[0].id;
   const clash = await call('POST', `/api/requests/${id2}/quote`, {
-    price_cents: 30000, proposed_start: start, duration_hours: 2,
+    outside_hours: true, price_cents: 30000, proposed_start: start, duration_hours: 2,
   });
   assert.equal(clash.status, 409);
 
@@ -189,13 +189,13 @@ test('double booking and blocked periods are refused', async () => {
   });
   assert.equal(block.status, 201);
   const blocked = await call('POST', `/api/requests/${id2}/quote`, {
-    price_cents: 30000, proposed_start: inDays(32, 11), duration_hours: 2,
+    outside_hours: true, price_cents: 30000, proposed_start: inDays(32, 11), duration_hours: 2,
   });
   assert.equal(blocked.status, 409);
   assert.match(blocked.data.error, /Vacances/);
 
   const free = await call('POST', `/api/requests/${id2}/quote`, {
-    price_cents: 30000, proposed_start: inDays(21, 9), duration_hours: 2,
+    outside_hours: true, price_cents: 30000, proposed_start: inDays(21, 9), duration_hours: 2,
   });
   assert.equal(free.status, 200);
 });
@@ -206,7 +206,7 @@ test('rescheduling moves the slot and re-arms the reminders', async () => {
   const created = await clientCall('POST', `/api/public/artists/${artist.slug}/requests`, brief());
   const requestId = (await call('GET', '/api/requests')).data.requests[0].id;
   await call('POST', `/api/requests/${requestId}/quote`, {
-    price_cents: 30000, proposed_start: inDays(12, 9), duration_hours: 2,
+    outside_hours: true, price_cents: 30000, proposed_start: inDays(12, 9), duration_hours: 2,
   });
   const { data } = await clientCall('POST', `/api/public/quotes/${created.data.request.public_token}/accept`);
 
@@ -231,7 +231,7 @@ test('expired quotes cannot be accepted', async () => {
   const created = await clientCall('POST', `/api/public/artists/${artist.slug}/requests`, brief());
   const requestId = (await call('GET', '/api/requests')).data.requests[0].id;
   await call('POST', `/api/requests/${requestId}/quote`, {
-    price_cents: 30000, proposed_start: inDays(9, 9), duration_hours: 2, expires_in_days: 1,
+    outside_hours: true, price_cents: 30000, proposed_start: inDays(9, 9), duration_hours: 2, expires_in_days: 1,
   });
   // Push the deadline into the past the way a stale quote would age out.
   const { getDb } = await import('../src/db.js');
@@ -274,7 +274,7 @@ test('an artist can close the books and decline a project', async () => {
   const requestId = (await call('GET', '/api/requests')).data.requests[0].id;
   const declined = await call('POST', `/api/requests/${requestId}/decline`, { reason: 'Pas mon style' });
   assert.equal(declined.data.request.status, 'declined');
-  assert.equal((await call('POST', `/api/requests/${requestId}/quote`, { price_cents: 20000 })).status, 409);
+  assert.equal((await call('POST', `/api/requests/${requestId}/quote`, { outside_hours: true, price_cents: 20000 })).status, 409);
 
   await call('PATCH', '/api/me', { accepting_requests: false });
   const closed = await anon('POST', `/api/public/artists/${artist.slug}/requests`, brief());
@@ -364,7 +364,7 @@ test('a paid deposit reaches the artist too', async () => {
   const created = await clientCall('POST', `/api/public/artists/${artist.slug}/requests`, brief());
   const requestId = (await call('GET', '/api/requests')).data.requests[0].id;
   await call('POST', `/api/requests/${requestId}/quote`, {
-    price_cents: 40000, proposed_start: inDays(14, 10), duration_hours: 3,
+    outside_hours: true, price_cents: 40000, proposed_start: inDays(14, 10), duration_hours: 3,
   });
   await clientCall('POST', `/api/public/quotes/${created.data.request.public_token}/accept`);
 
@@ -381,7 +381,7 @@ test('a quote that lapsed is swept, and both sides are told', async () => {
   await clientCall('POST', `/api/public/artists/${artist.slug}/requests`, brief());
   const requestId = (await call('GET', '/api/requests?status=new')).data.requests[0].id;
   await call('POST', `/api/requests/${requestId}/quote`, {
-    price_cents: 30000, proposed_start: inDays(20, 10), duration_hours: 2,
+    outside_hours: true, price_cents: 30000, proposed_start: inDays(20, 10), duration_hours: 2,
   });
 
   const { getDb } = await import('../src/db.js');
@@ -409,7 +409,7 @@ test('a live quote and a booked one are left alone by the sweep', async () => {
   const created = await clientCall('POST', `/api/public/artists/${artist.slug}/requests`, brief());
   const requestId = (await call('GET', '/api/requests?status=new')).data.requests[0].id;
   await call('POST', `/api/requests/${requestId}/quote`, {
-    price_cents: 30000, proposed_start: inDays(25, 10), duration_hours: 2, expires_in_days: 30,
+    outside_hours: true, price_cents: 30000, proposed_start: inDays(25, 10), duration_hours: 2, expires_in_days: 30,
   });
   await clientCall('POST', `/api/public/quotes/${created.data.request.public_token}/accept`);
 
@@ -424,4 +424,85 @@ test('the scheduler sweeps before it sends', async () => {
   assert.equal(res.status, 200);
   assert.equal(typeof res.data.expired, 'number');
   assert.equal(typeof res.data.dispatched, 'number');
+});
+
+test('the artist is offered slots that actually fit, and out-of-hours needs saying so', async () => {
+  const { call, artist } = await signUpArtist();
+  await call('PATCH', '/api/me', {
+    timezone: 'Europe/Paris',
+    lead_hours: 48,
+    working_hours: [
+      { open: false, from: '11:00', to: '19:00' },
+      { open: false, from: '11:00', to: '19:00' },
+      { open: true, from: '11:00', to: '19:00' },
+      { open: true, from: '11:00', to: '19:00' },
+      { open: true, from: '11:00', to: '19:00' },
+      { open: true, from: '11:00', to: '19:00' },
+      { open: true, from: '11:00', to: '19:00' },
+    ],
+  });
+
+  const { slots } = (await call('GET', '/api/slots?hours=4')).data;
+  assert.ok(slots.length > 0, 'the week has room for a four-hour piece');
+  for (const slot of slots) {
+    const day = new Date(slot.starts_at).toLocaleDateString('en-US', { timeZone: 'Europe/Paris', weekday: 'short' });
+    assert.ok(!['Sun', 'Mon'].includes(day), `${day} is closed`);
+  }
+
+  const anon = client();
+  await anon('POST', `/api/public/artists/${artist.slug}/requests`, brief());
+  const requestId = (await call('GET', '/api/requests?status=new')).data.requests[0].id;
+
+  // A slot the studio itself offered goes through without any override.
+  const accepted = await call('POST', `/api/requests/${requestId}/quote`, {
+    price_cents: 40000, proposed_start: slots[0].starts_at, duration_hours: 4,
+  });
+  assert.equal(accepted.status, 200);
+});
+
+test('a slot outside opening hours is refused until the artist confirms', async () => {
+  const { call, artist } = await signUpArtist();
+  const anon = client();
+  await anon('POST', `/api/public/artists/${artist.slug}/requests`, brief());
+  const requestId = (await call('GET', '/api/requests?status=new')).data.requests[0].id;
+
+  // 04:00 UTC is 06:00 in Paris: nobody is tattooing.
+  const dawn = new Date(Date.now() + 10 * 86400000);
+  dawn.setUTCHours(4, 0, 0, 0);
+
+  const refused = await call('POST', `/api/requests/${requestId}/quote`, {
+    price_cents: 40000, proposed_start: dawn.toISOString(), duration_hours: 2,
+  });
+  assert.equal(refused.status, 409);
+  assert.match(refused.data.error, /opening hours/);
+
+  const forced = await call('POST', `/api/requests/${requestId}/quote`, {
+    price_cents: 40000, proposed_start: dawn.toISOString(), duration_hours: 2, outside_hours: true,
+  });
+  assert.equal(forced.status, 200, 'a deliberate exception is allowed');
+});
+
+test('opening hours are validated, not stored as whatever arrives', async () => {
+  const { call } = await signUpArtist();
+  const short = await call('PATCH', '/api/me', { working_hours: [{ open: true, from: '11:00', to: '19:00' }] });
+  assert.equal(short.status, 400);
+  assert.match(short.data.error, /seven days/);
+
+  const week = Array.from({ length: 7 }, () => ({ open: true, from: '19:00', to: '11:00' }));
+  const backwards = await call('PATCH', '/api/me', { working_hours: week });
+  assert.equal(backwards.status, 400);
+  assert.match(backwards.data.error, /after opening time/);
+
+  const badZone = await call('PATCH', '/api/me', { timezone: 'Mars/Olympus_Mons' });
+  assert.equal(badZone.status, 400);
+  assert.match(badZone.data.error, /not a known time zone/);
+});
+
+test('a client sees roughly when the studio could take them', async () => {
+  const { artist } = await signUpArtist();
+  const anon = client();
+  const res = await anon('GET', `/api/public/artists/${artist.slug}/slots?hours=2`);
+  assert.equal(res.status, 200);
+  assert.ok(res.data.slots.length <= 3, 'a hint, not a booking grid');
+  assert.equal(res.data.timezone, 'Europe/Paris');
 });

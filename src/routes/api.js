@@ -8,6 +8,7 @@ import {
 import { estimate, referencePrice, REFERENCE_SIZE_CM, DETAIL_LEVELS, COLOR_MODES } from '../pricing.js';
 import { providerNames, splitAddress, baseUrl } from '../mailer.js';
 import { paymentsProvider, verifyWebhook, PaymentError } from '../payments.js';
+import { isTime, parseWorkingHours, DEFAULT_WORKING_HOURS } from '../availability.js';
 import { dispatchDue, MAX_SEND_ATTEMPTS } from '../messages.js';
 import * as service from '../service.js';
 
@@ -145,6 +146,9 @@ api.patch('/api/me', async (req, res) => {
     minimum_cents: body.minimum_cents !== undefined ? v.int(body.minimum_cents, 'minimum_cents', { min: 0, max: 10000000 }) : undefined,
     deposit_percent: body.deposit_percent !== undefined ? v.int(body.deposit_percent, 'deposit_percent', { min: 0, max: 100 }) : undefined,
     cancellation_hours: body.cancellation_hours !== undefined ? v.int(body.cancellation_hours, 'cancellation_hours', { min: 0, max: 336 }) : undefined,
+    working_hours: body.working_hours !== undefined ? JSON.stringify(parseHoursInput(body.working_hours)) : undefined,
+    timezone: body.timezone !== undefined ? validTimezone(body.timezone) : undefined,
+    lead_hours: body.lead_hours !== undefined ? v.int(body.lead_hours, 'lead_hours', { min: 0, max: 720 }) : undefined,
     accepting_requests: body.accepting_requests !== undefined ? (v.bool(body.accepting_requests) ? 1 : 0) : undefined,
   };
   const entries = Object.entries(fields).filter(([, value]) => value !== undefined);
@@ -158,6 +162,27 @@ api.patch('/api/me', async (req, res) => {
   json(res, 200, { artist: publicArtist(await service.getArtist(artist.id)) });
 });
 
+/** Seven days, each open or closed with a window; anything else is refused. */
+function parseHoursInput(value) {
+  if (!Array.isArray(value) || value.length !== 7) throw bad('"working_hours" must list the seven days');
+  return value.map((day, index) => {
+    const from = isTime(day?.from) ? day.from : DEFAULT_WORKING_HOURS[index].from;
+    const to = isTime(day?.to) ? day.to : DEFAULT_WORKING_HOURS[index].to;
+    if (to <= from) throw bad(`"working_hours" day ${index}: closing time must be after opening time`);
+    return { open: Boolean(day?.open), from, to };
+  });
+}
+
+function validTimezone(value) {
+  const zone = v.str(value, 'timezone', { max: 64 });
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: zone });
+  } catch {
+    throw bad(`"timezone" is not a known time zone (${zone})`);
+  }
+  return zone;
+}
+
 /* -------------------------------------------------------------------- public */
 
 api.get('/api/public/artists/:slug', async (req, res, { params }) => {
@@ -169,6 +194,7 @@ api.get('/api/public/artists/:slug', async (req, res, { params }) => {
       styles: JSON.parse(artist.styles || '[]'), currency: artist.currency,
       reference_price_cents: referencePrice(artist), reference_size_cm: REFERENCE_SIZE_CM,
       minimum_cents: artist.minimum_cents,
+      working_hours: parseWorkingHours(artist.working_hours), timezone: artist.timezone || 'Europe/Paris',
       deposit_percent: artist.deposit_percent, cancellation_hours: artist.cancellation_hours,
       accepting_requests: !!artist.accepting_requests,
     },
@@ -222,6 +248,15 @@ api.post('/api/public/artists/:slug/requests', async (req, res, { params }) => {
     currency: artist.currency,
     track_url: `/q/${request.public_token}`,
   });
+});
+
+api.get('/api/public/artists/:slug/slots', async (req, res, { params, url }) => {
+  const artist = await service.getArtistBySlug(params.slug);
+  if (!artist) throw notFound('Artist not found');
+  const hours = Number(url.searchParams.get('hours')) || 2;
+  // A few, not the whole calendar: this is "roughly when", not a booking grid.
+  const slots = await service.nextSlots(artist, { durationHours: hours, limit: 3 });
+  json(res, 200, { slots, timezone: artist.timezone || 'Europe/Paris' });
 });
 
 api.get('/api/public/quotes/:token', async (req, res, { params }) => {
@@ -300,6 +335,7 @@ api.post('/api/requests/:id/quote', async (req, res, { params }) => {
       ? Math.max(0.5, Number(body.duration_hours)) : undefined,
     note: v.str(body.note, 'note', { required: false, max: 1000 }),
     expires_in_days: v.int(body.expires_in_days, 'expires_in_days', { required: false, min: 1, max: 60, fallback: 7 }) ?? 7,
+    outside_hours: v.bool(body.outside_hours),
   });
   json(res, 200, { request });
 });
@@ -312,6 +348,14 @@ api.post('/api/requests/:id/decline', async (req, res, { params }) => {
 });
 
 /* -------------------------------------------------------------- appointments */
+
+api.get('/api/slots', async (req, res, { url }) => {
+  const artist = await requireArtist(req);
+  const hours = Number(url.searchParams.get('hours')) || 2;
+  const days = v.int(url.searchParams.get('days'), 'days', { required: false, min: 1, max: 120, fallback: 28 }) ?? 28;
+  const limit = v.int(url.searchParams.get('limit'), 'limit', { required: false, min: 1, max: 40, fallback: 12 }) ?? 12;
+  json(res, 200, { slots: await service.nextSlots(artist, { durationHours: hours, days, limit }) });
+});
 
 api.get('/api/appointments', async (req, res, { url }) => {
   const artist = await requireArtist(req);

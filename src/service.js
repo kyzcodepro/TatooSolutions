@@ -6,6 +6,9 @@ import { randomBytes } from 'node:crypto';
 import { getDb, nowIso } from './db.js';
 import { HttpError, bad, conflict, notFound } from './http.js';
 import { estimate, suggestDeposit, MAX_SESSION_HOURS } from './pricing.js';
+import {
+  availableSlots, parseWorkingHours, withinWorkingHours, DEFAULT_TIMEZONE,
+} from './availability.js';
 import { startDeposit, paymentsProvider } from './payments.js';
 import {
   queueRequestReceived, queueQuoteSent, queueBookingConfirmed, queueArtistNewRequest,
@@ -101,6 +104,7 @@ export async function getRequestByToken(token) {
 
 export async function sendQuote(artist, requestId, {
   price_cents, deposit_cents, proposed_start, duration_hours, note = '', expires_in_days = 7,
+  outside_hours = false,
 }) {
   const db = await getDb();
   const request = await getRequestOwned(artist.id, requestId);
@@ -119,6 +123,11 @@ export async function sendQuote(artist, requestId, {
     start = proposed_start;
     end = new Date(new Date(start).getTime() + Math.min(hours, MAX_SESSION_HOURS) * 3600000).toISOString();
     await assertSlotFree(artist.id, start, end);
+    // Opening hours protect by default; an artist making a deliberate exception
+    // says so rather than being refused.
+    if (!outside_hours && !withinWorkingHours(start, end, studioHours(artist))) {
+      throw conflict('That slot falls outside your opening hours — confirm the exception to send it anyway');
+    }
   }
 
   const expiresAt = new Date(Date.now() + expires_in_days * 86400000).toISOString();
@@ -283,6 +292,35 @@ async function bookPaidRequest({ request, artist, reference }) {
   await queueArtistDepositPaid(artist, updatedRequest, appointment);
   await scheduleAppointmentReminders(artist, updatedRequest, appointment);
   return { appointment, already: false };
+}
+
+/* ------------------------------------------------------------- availability */
+
+const studioHours = (artist) => ({
+  workingHours: parseWorkingHours(artist.working_hours),
+  timeZone: artist.timezone || DEFAULT_TIMEZONE,
+  leadHours: artist.lead_hours ?? 48,
+});
+
+/** Everything already spoken for: booked sessions and closed periods. */
+async function busyPeriods(artistId) {
+  const db = await getDb();
+  const appointments = await db.all(
+    "SELECT starts_at, ends_at FROM appointments WHERE artist_id = ? AND status = 'scheduled'",
+    [artistId],
+  );
+  const blocks = await db.all('SELECT starts_at, ends_at FROM blocks WHERE artist_id = ?', [artistId]);
+  return [...appointments, ...blocks];
+}
+
+/**
+ * The next slots a piece of this length fits into. Proposing a date used to mean
+ * typing one blind and finding out afterwards whether it clashed.
+ */
+export async function nextSlots(artist, { durationHours = 2, days = 28, limit = 12, from } = {}) {
+  return availableSlots(studioHours(artist), {
+    durationHours, days, limit, from, busy: await busyPeriods(artist.id),
+  });
 }
 
 /* -------------------------------------------------------------- appointments */

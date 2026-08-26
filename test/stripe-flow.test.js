@@ -99,7 +99,7 @@ async function quotedRequest({ email = 'camille@studio.example', start = inDays(
   });
   const request = (await artistCall('GET', '/api/requests?status=new')).data.requests[0];
   await artistCall('POST', `/api/requests/${request.id}/quote`, {
-    price_cents: 55000, proposed_start: start, duration_hours: 4,
+    outside_hours: true, price_cents: 55000, proposed_start: start, duration_hours: 4,
   });
   return { artistCall, clientCall, token: created.data.request.public_token, slug, start };
 }

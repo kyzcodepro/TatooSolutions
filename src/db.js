@@ -115,6 +115,9 @@ const MIGRATIONS = [
   ['requests', 'payment_provider', 'TEXT'],
   ['artists', 'reference_price_cents', 'INTEGER NOT NULL DEFAULT 0'],
   ['messages', 'reply_to', 'TEXT'],
+  ['artists', 'working_hours', 'TEXT'],
+  ['artists', 'timezone', "TEXT NOT NULL DEFAULT 'Europe/Paris'"],
+  ['artists', 'lead_hours', 'INTEGER NOT NULL DEFAULT 48'],
 ];
 
 // Idempotent by construction: each only touches rows not yet converted.

@@ -116,6 +116,25 @@
         <div><label for="set-deposit">Acompte (%)</label><input id="set-deposit" type="number" min="0" max="100" step="5"></div>
         <div><label for="set-cancel">Annulation libre (h)</label><input id="set-cancel" type="number" min="0" max="336" step="1"></div>
       </div>
+      <hr class="divider">
+      <h3>Disponibilités</h3>
+      <p class="muted" style="font-size:0.88rem">
+        Les créneaux proposés dans vos devis sortent de là. Les congés se posent
+        depuis l'onglet Agenda.
+      </p>
+      <div id="hours-editor" style="margin-top:1rem"></div>
+      <div class="field-row">
+        <div><label for="set-timezone">Fuseau horaire</label>
+          <input id="set-timezone" list="timezones" maxlength="64" placeholder="Europe/Paris">
+          <datalist id="timezones">
+            <option value="Europe/Paris"><option value="Europe/Brussels"><option value="Europe/Zurich">
+            <option value="Europe/London"><option value="Europe/Madrid"><option value="Europe/Lisbon">
+            <option value="America/Montreal"><option value="Indian/Reunion">
+          </datalist></div>
+        <div><label for="set-lead">Délai avant le premier créneau (h)</label>
+          <input id="set-lead" type="number" min="0" max="720" step="12"></div>
+      </div>
+
       <label class="check" style="margin-top:1rem">
         <input type="checkbox" id="set-accepting"><span>J'accepte de nouvelles demandes</span>
       </label>

@@ -2,6 +2,7 @@ import { createHmac, randomBytes, pbkdf2Sync, timingSafeEqual } from 'node:crypt
 import { getDb } from './db.js';
 import { parseCookies, unauthorized } from './http.js';
 import { referencePrice, REFERENCE_SIZE_CM } from './pricing.js';
+import { parseWorkingHours, DEFAULT_TIMEZONE } from './availability.js';
 
 const ITERATIONS = 120000;
 const KEYLEN = 32;
@@ -118,6 +119,9 @@ export function publicArtist(artist) {
     minimum_cents: artist.minimum_cents,
     deposit_percent: artist.deposit_percent,
     cancellation_hours: artist.cancellation_hours,
+    working_hours: parseWorkingHours(artist.working_hours),
+    timezone: artist.timezone || DEFAULT_TIMEZONE,
+    lead_hours: artist.lead_hours ?? 48,
     accepting_requests: !!artist.accepting_requests,
   };
 }
