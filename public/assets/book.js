@@ -1,4 +1,4 @@
-import { api, toast, money, esc, DETAIL_LABELS, COLOR_LABELS } from './util.js';
+import { api, toast, money, hours as formatHours, esc, DETAIL_LABELS, COLOR_LABELS } from './util.js';
 
 const slug = decodeURIComponent(location.pathname.split('/').filter(Boolean)[1] ?? '');
 const el = (id) => document.getElementById(id);
@@ -42,7 +42,6 @@ function renderArtist(options) {
   el('artist-name').textContent = artist.studio_name;
   el('artist-bio').textContent = artist.bio || 'Décrivez votre projet, vous recevez une estimation immédiate et un devis ferme sous peu.';
   el('artist-styles').textContent = artist.styles.length ? artist.styles.join(' · ') : 'Réservation en ligne';
-  el('artist-rate').textContent = `${money(artist.hourly_rate_cents, currency)} / h`;
   el('artist-minimum').textContent = money(artist.minimum_cents, currency);
   el('artist-cancel').textContent = `${artist.cancellation_hours} h avant`;
 
@@ -93,9 +92,10 @@ async function runEstimate() {
     const { estimate } = await api('POST', `/api/public/artists/${encodeURIComponent(slug)}/estimate`, payload);
     el('estimate-range').textContent = `${money(estimate.low_cents, currency)} – ${money(estimate.high_cents, currency)}`;
     el('estimate-detail').textContent =
-      `≈ ${estimate.hours} h de travail · ${estimate.sessions} séance${estimate.sessions > 1 ? 's' : ''}`
+      `≈ ${formatHours(estimate.hours)} h de travail · ${estimate.sessions} séance${estimate.sessions > 1 ? 's' : ''}`
       + (estimate.spread_percent >= 18 ? ' · fourchette large sur un projet de cette taille' : '');
     el('estimate-deposit').textContent = money(estimate.deposit_cents, currency);
+    renderFactors(estimate);
     pulseEstimate();
 
     const warning = el('budget-warning');
@@ -109,6 +109,26 @@ async function runEstimate() {
   } catch (err) {
     el('estimate-detail').textContent = err.message;
   }
+}
+
+/**
+ * The price is built from the tattoo's properties, so the client sees them —
+ * a number with no explanation is a number nobody argues with or trusts.
+ */
+function renderFactors(estimate) {
+  const rows = [
+    `<div><span>Pièce de référence (${artist.reference_size_cm} cm)</span><b>${esc(money(estimate.reference_price_cents, currency))}</b></div>`,
+    ...estimate.factors.map(({ label, factor }) => {
+      const sign = factor > 1 ? '+' : '';
+      const delta = `${sign}${Math.round((factor - 1) * 100)} %`;
+      const tone = factor > 1 ? 'var(--warn)' : (factor < 1 ? 'var(--ok)' : 'var(--muted)');
+      return `<div><span>${esc(label)}</span><b style="color:${tone}">${factor === 1 ? '—' : esc(delta)}</b></div>`;
+    }),
+  ];
+  if (estimate.floored_by_minimum) {
+    rows.push('<div><span>Minimum studio appliqué</span><b>—</b></div>');
+  }
+  el('estimate-factors').innerHTML = rows.join('');
 }
 
 // A brief sweep when the amount is recomputed: enough to notice, not enough to distract.

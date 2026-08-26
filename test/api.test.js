@@ -17,7 +17,7 @@ async function signUpArtist(overrides = {}) {
   });
   assert.equal(res.status, 201);
   await call('PATCH', '/api/me', {
-    hourly_rate_cents: 12000, minimum_cents: 8000, deposit_percent: 30, cancellation_hours: 48,
+    reference_price_cents: 18000, minimum_cents: 8000, deposit_percent: 30, cancellation_hours: 48,
   });
   return { call, artist: res.data.artist };
 }
@@ -73,7 +73,7 @@ test('public booking page exposes rates and a live estimate', async () => {
   const anon = client();
   const page = await anon('GET', `/api/public/artists/${artist.slug}`);
   assert.equal(page.status, 200);
-  assert.equal(page.data.artist.hourly_rate_cents, 12000);
+  assert.equal(page.data.artist.reference_price_cents, 18000);
   assert.ok(page.data.options.color_modes.includes('color'));
 
   const est = await anon('POST', `/api/public/artists/${artist.slug}/estimate`, {

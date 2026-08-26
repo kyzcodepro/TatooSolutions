@@ -1,5 +1,5 @@
 import {
-  api, toast, money, euros, dateTime, relative, percent, esc,
+  api, toast, money, euros, dateTime, relative, percent, hours as formatHours, esc,
   statusBadge, toIso, toLocalInput, COLOR_LABELS, DETAIL_LABELS,
 } from './util.js';
 
@@ -137,7 +137,7 @@ function requestCard(request) {
             ${request.cover_up ? '<span><b>Cover-up</b></span>' : ''}
           </div>
           <div class="meta">
-            <span>Estimation : <b>${money(request.estimate_low_cents, currency)} – ${money(request.estimate_high_cents, currency)}</b> (${esc(request.estimated_hours)} h)</span>
+            <span>Estimation : <b>${money(request.estimate_low_cents, currency)} – ${money(request.estimate_high_cents, currency)}</b> (${esc(formatHours(request.estimated_hours))} h)</span>
             <span>Budget client : <b>${budget ? money(budget, currency) : 'non précisé'}</b></span>
             <span>${esc(request.client_email)}</span>
             ${request.client_phone ? `<span>${esc(request.client_phone)}</span>` : ''}
@@ -188,7 +188,7 @@ function openQuoteModal(request) {
         <h3 id="quote-title">Devis pour ${esc(request.client_name)}</h3>
         <p class="muted" style="font-size:0.9rem">
           Estimation automatique : ${money(request.estimate_low_cents, currency)} – ${money(request.estimate_high_cents, currency)}
-          sur ${esc(request.estimated_hours)} h.
+          sur ${esc(formatHours(request.estimated_hours))} h.
         </p>
         <div class="field-row">
           <div><label for="q-price">Prix ferme (€)</label><input id="q-price" type="number" min="5" step="5" value="${price}"></div>
@@ -396,7 +396,7 @@ function wireSettings() {
   el('set-city').value = artist.city;
   el('set-bio').value = artist.bio;
   el('set-styles').value = artist.styles.join(', ');
-  el('set-rate').value = euros(artist.hourly_rate_cents);
+  el('set-reference').value = euros(artist.reference_price_cents);
   el('set-minimum').value = euros(artist.minimum_cents);
   el('set-deposit').value = artist.deposit_percent;
   el('set-cancel').value = artist.cancellation_hours;
@@ -410,7 +410,7 @@ function wireSettings() {
         city: el('set-city').value,
         bio: el('set-bio').value,
         styles: el('set-styles').value.split(',').map((s) => s.trim()).filter(Boolean),
-        hourly_rate_cents: Math.round(Number(el('set-rate').value) * 100),
+        reference_price_cents: Math.round(Number(el('set-reference').value) * 100),
         minimum_cents: Math.round(Number(el('set-minimum').value) * 100),
         deposit_percent: Number(el('set-deposit').value),
         cancellation_hours: Number(el('set-cancel').value),

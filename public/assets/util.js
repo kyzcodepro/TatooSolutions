@@ -58,6 +58,8 @@ export function relative(iso) {
   return fmt.format(Math.round(diff / 60000), 'minute');
 }
 
+export const hours = (value) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(Number(value) || 0);
+
 export const percent = (value) => `${Math.round((Number(value) || 0) * 100)} %`;
 
 export function esc(value) {

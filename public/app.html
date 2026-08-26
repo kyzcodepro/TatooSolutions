@@ -105,9 +105,13 @@
 
       <hr class="divider">
       <h3>Tarifs et conditions</h3>
-      <p class="muted" style="font-size:0.88rem">C'est avec ça que l'estimation automatique est calculée.</p>
+      <p class="muted" style="font-size:0.88rem">
+        L'estimation part du prix de votre pièce de référence, puis l'ajuste selon les
+        propriétés du projet : taille, niveau de détail, couleur, zone, recouvrement.
+      </p>
       <div class="field-row">
-        <div><label for="set-rate">Taux horaire (€)</label><input id="set-rate" type="number" min="10" step="5"></div>
+        <div><label for="set-reference">Pièce de référence — 10 cm, noir, détail moyen (€)</label>
+          <input id="set-reference" type="number" min="10" step="5"></div>
         <div><label for="set-minimum">Minimum studio (€)</label><input id="set-minimum" type="number" min="0" step="5"></div>
         <div><label for="set-deposit">Acompte (%)</label><input id="set-deposit" type="number" min="0" max="100" step="5"></div>
         <div><label for="set-cancel">Annulation libre (h)</label><input id="set-cancel" type="number" min="0" max="336" step="1"></div>

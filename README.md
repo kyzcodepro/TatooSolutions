@@ -27,7 +27,7 @@ brief structuré → estimation automatique → devis + acompte → date bloqué
 ```bash
 npm run seed     # crée le studio de démo « Atelier Noir » et son historique
 npm start        # http://localhost:3000
-npm test         # 77 tests (estimation, API, serverless, libSQL, envoi, paiement)
+npm test         # 84 tests (estimation, API, serverless, libSQL, envoi, paiement)
 ```
 
 Compte de démonstration : **demo@inkflow.app** / **demotattoo**
@@ -80,17 +80,31 @@ trop ancienne l'application le dit explicitement au démarrage au lieu de plante
 
 ## Moteur d'estimation
 
-`src/pricing.js` traduit un brief en heures puis en fourchette de prix :
+Un tatoueur ne facture pas une horloge : il facture une pièce — sa taille, son
+niveau de détail, la couleur, la zone, s'il faut recouvrir quelque chose. Le prix
+part donc du **prix de référence** que le studio fixe pour une pièce type
+(10 cm, noir, détail moyen) et l'ajuste par les propriétés du projet :
 
-- heures de base par palier de taille (0,75 h à 5 cm → 12 h et plus au-delà de 40 cm) ;
-- multiplicateurs de niveau de détail (0,8 à 1,7) et de rendu (0,85 à 1,3) ;
-- majoration des zones difficiles (côtes, mains, cou, genoux… jusqu'à ×1,3) ;
-- +40 % pour un recouvrement ;
-- prix = `max(minimum studio, heures × taux horaire)`, fourchette −10 % / +15 % arrondie à 5 € ;
-- séances découpées par tranches de 6 h, acompte au pourcentage du studio.
+| Propriété | Effet |
+| --- | --- |
+| Taille | courbe continue, ×1 à 10 cm, ×2,3 à 18 cm, ×6 à 40 cm |
+| Niveau de détail | ×0,7 (simple) à ×2 (hyperréalisme) — le facteur le plus lourd |
+| Rendu | ×0,85 (ligne seule) à ×1,35 (couleur) |
+| Zone | jusqu'à ×1,3 (côtes, mains, cou, visage…) |
+| Recouvrement | ×1,4 |
 
-Le but n'est pas d'être exact au centime : c'est de donner une fourchette honnête et de trier
-les projets hors budget avant d'y passer une heure.
+`prix = max(minimum studio, référence × facteurs)`, jamais en dessous du minimum.
+La fourchette s'élargit avec le travail (±12 % sur une petite pièce, ±23 % sur
+une grosse) : une fourchette étroite sur un long projet est une promesse
+intenable. La durée reste calculée, mais elle ne sert plus qu'à découper les
+séances et à situer le rendez-vous — elle ne fait pas le prix.
+
+Le client voit le détail du calcul sur sa page de réservation : la pièce de
+référence, puis chaque propriété avec son effet en pourcentage. Un chiffre sans
+explication ne se discute pas, et ne se croit pas non plus.
+
+Les studios configurés avant ce changement gardent exactement leurs prix : leur
+pièce de référence vaut ce que leur taux horaire facturait pour elle.
 
 ## Architecture
 

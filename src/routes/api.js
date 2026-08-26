@@ -5,7 +5,7 @@ import {
   hashPassword, verifyPassword, createSession, destroySession, requireArtist,
   currentArtist, publicArtist, SESSION_COOKIE,
 } from '../auth.js';
-import { estimate, DETAIL_LEVELS, COLOR_MODES } from '../pricing.js';
+import { estimate, referencePrice, REFERENCE_SIZE_CM, DETAIL_LEVELS, COLOR_MODES } from '../pricing.js';
 import { providerNames, splitAddress, baseUrl } from '../mailer.js';
 import { paymentsProvider, verifyWebhook, PaymentError } from '../payments.js';
 import { dispatchDue, MAX_SEND_ATTEMPTS } from '../messages.js';
@@ -140,6 +140,7 @@ api.patch('/api/me', async (req, res) => {
     bio: body.bio !== undefined ? v.str(body.bio, 'bio', { required: false, max: 1000 }) : undefined,
     styles: body.styles !== undefined ? JSON.stringify(v.stringList(body.styles, 'styles', { max: 12, itemMax: 40 })) : undefined,
     currency: body.currency !== undefined ? v.oneOf(body.currency, 'currency', ['EUR', 'CHF', 'GBP', 'USD', 'CAD']) : undefined,
+    reference_price_cents: body.reference_price_cents !== undefined ? v.int(body.reference_price_cents, 'reference_price_cents', { min: 1000, max: 10000000 }) : undefined,
     hourly_rate_cents: body.hourly_rate_cents !== undefined ? v.int(body.hourly_rate_cents, 'hourly_rate_cents', { min: 1000, max: 10000000 }) : undefined,
     minimum_cents: body.minimum_cents !== undefined ? v.int(body.minimum_cents, 'minimum_cents', { min: 0, max: 10000000 }) : undefined,
     deposit_percent: body.deposit_percent !== undefined ? v.int(body.deposit_percent, 'deposit_percent', { min: 0, max: 100 }) : undefined,
@@ -166,7 +167,8 @@ api.get('/api/public/artists/:slug', async (req, res, { params }) => {
     artist: {
       studio_name: artist.studio_name, slug: artist.slug, city: artist.city, bio: artist.bio,
       styles: JSON.parse(artist.styles || '[]'), currency: artist.currency,
-      hourly_rate_cents: artist.hourly_rate_cents, minimum_cents: artist.minimum_cents,
+      reference_price_cents: referencePrice(artist), reference_size_cm: REFERENCE_SIZE_CM,
+      minimum_cents: artist.minimum_cents,
       deposit_percent: artist.deposit_percent, cancellation_hours: artist.cancellation_hours,
       accepting_requests: !!artist.accepting_requests,
     },

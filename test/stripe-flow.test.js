@@ -89,7 +89,7 @@ async function quotedRequest({ email = 'camille@studio.example', start = inDays(
   });
   const me = await artistCall('GET', '/api/me');
   const slug = me.data.artist.slug;
-  await artistCall('PATCH', '/api/me', { hourly_rate_cents: 12000, minimum_cents: 8000, deposit_percent: 30 });
+  await artistCall('PATCH', '/api/me', { reference_price_cents: 18000, minimum_cents: 8000, deposit_percent: 30 });
 
   const clientCall = client();
   const created = await clientCall('POST', `/api/public/artists/${slug}/requests`, {

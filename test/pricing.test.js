@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { estimate, suggestDeposit, placementMultiplier } from '../src/pricing.js';
+import { estimate, suggestDeposit, placementFactor, sizeFactor } from '../src/pricing.js';
 
-const artist = { hourly_rate_cents: 12000, minimum_cents: 8000, deposit_percent: 30 };
+const artist = { reference_price_cents: 18000, minimum_cents: 8000, deposit_percent: 30 };
 
 test('a small simple piece falls back to the shop minimum', () => {
   const result = estimate({ size_cm: 3, detail_level: 'simple', color_mode: 'linework' }, artist);
@@ -22,7 +22,7 @@ test('tough placements cost more hours than an easy one', () => {
   const forearm = estimate({ size_cm: 15, detail_level: 'medium', color_mode: 'blackwork', placement: 'forearm' }, artist);
   const ribs = estimate({ size_cm: 15, detail_level: 'medium', color_mode: 'blackwork', placement: 'ribs' }, artist);
   assert.ok(ribs.hours > forearm.hours);
-  assert.equal(placementMultiplier('left forearm'), 1);
+  assert.equal(placementFactor('left forearm'), 1);
 });
 
 test('cover-ups carry a surcharge', () => {
@@ -102,4 +102,38 @@ test('the displayed duration is rounded but the price is not quantised by it', (
   const b = estimate({ size_cm: 18, detail_level: 'medium', color_mode: 'blackwork' }, artist);
   assert.equal(a.hours % 0.25, 0, 'hours are spoken in quarters');
   assert.notEqual(a.midpoint_cents, b.midpoint_cents, 'but a centimetre still moves the money');
+});
+
+test('the price is built from the properties, not from a clock', () => {
+  // Same size, same everything but the drawing: complexity is what moves it.
+  const simple = estimate({ size_cm: 10, detail_level: 'simple', color_mode: 'linework' }, artist);
+  const dense = estimate({ size_cm: 10, detail_level: 'hyperrealism', color_mode: 'color' }, artist);
+  assert.ok(dense.midpoint_cents > simple.midpoint_cents * 3);
+
+  // The reference piece is exactly what the studio said it charges for one.
+  const reference = estimate({ size_cm: 10, detail_level: 'medium', color_mode: 'blackwork' }, artist);
+  assert.equal(reference.midpoint_cents, artist.reference_price_cents);
+  assert.equal(sizeFactor(10), 1);
+});
+
+test('the estimate shows what drives it', () => {
+  const result = estimate({
+    size_cm: 18, detail_level: 'high', color_mode: 'blackgrey', placement: 'côtes', cover_up: true,
+  }, artist);
+
+  const byKey = Object.fromEntries(result.factors.map((f) => [f.key, f]));
+  assert.ok(byKey.size.factor > 2, 'an 18 cm piece is more than twice the reference');
+  assert.equal(byKey.detail.label, 'Très détaillé');
+  assert.ok(byKey.placement.factor > 1, 'ribs cost more');
+  assert.equal(byKey.cover_up.factor, 1.4);
+  // Neutral factors are not paraded as if they changed something.
+  const neutral = estimate({ size_cm: 10, detail_level: 'medium', color_mode: 'blackwork' }, artist);
+  assert.deepEqual(neutral.factors.map((f) => f.key), ['size']);
+});
+
+test('a studio configured before the change keeps its prices', () => {
+  // Its reference piece is what its hourly rate charged for one.
+  const legacy = { hourly_rate_cents: 12000, minimum_cents: 8000, deposit_percent: 30 };
+  const result = estimate({ size_cm: 10, detail_level: 'medium', color_mode: 'blackwork' }, legacy);
+  assert.equal(result.midpoint_cents, 18000);
 });

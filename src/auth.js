@@ -1,6 +1,7 @@
 import { createHmac, randomBytes, pbkdf2Sync, timingSafeEqual } from 'node:crypto';
 import { getDb } from './db.js';
 import { parseCookies, unauthorized } from './http.js';
+import { referencePrice, REFERENCE_SIZE_CM } from './pricing.js';
 
 const ITERATIONS = 120000;
 const KEYLEN = 32;
@@ -111,6 +112,8 @@ export function publicArtist(artist) {
     bio: artist.bio,
     styles: JSON.parse(artist.styles || '[]'),
     currency: artist.currency,
+    reference_price_cents: referencePrice(artist),
+    reference_size_cm: REFERENCE_SIZE_CM,
     hourly_rate_cents: artist.hourly_rate_cents,
     minimum_cents: artist.minimum_cents,
     deposit_percent: artist.deposit_percent,

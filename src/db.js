@@ -113,6 +113,15 @@ const MIGRATIONS = [
   ['messages', 'last_error', 'TEXT'],
   ['requests', 'payment_ref', 'TEXT'],
   ['requests', 'payment_provider', 'TEXT'],
+  ['artists', 'reference_price_cents', 'INTEGER NOT NULL DEFAULT 0'],
+];
+
+// Idempotent by construction: each only touches rows not yet converted.
+const BACKFILLS = [
+  // Pricing moved off the clock. A studio's reference piece (10 cm) is what their
+  // hourly rate used to charge for it, so nobody's prices change under them.
+  `UPDATE artists SET reference_price_cents = CAST(ROUND(hourly_rate_cents * 1.5) AS INTEGER)
+     WHERE reference_price_cents IS NULL OR reference_price_cents <= 0`,
 ];
 
 let db = null;
@@ -156,6 +165,7 @@ async function connect() {
   for (const [table, column, definition] of MIGRATIONS) {
     await addColumnIfMissing(adapter, table, column, definition);
   }
+  for (const statement of BACKFILLS) await adapter.exec(statement);
   db = adapter;
   return db;
 }
