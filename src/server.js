@@ -9,6 +9,7 @@ import { api } from './routes/api.js';
 import { getDb, isServerless, isEphemeral } from './db.js';
 import { dispatchDue } from './messages.js';
 import { seedIfEmpty } from './seed.js';
+import { expireStaleQuotes } from './service.js';
 import { renderDiagnostics } from './diagnostics.js';
 
 const ROOT = resolve(fileURLToPath(new URL('../', import.meta.url)));
@@ -98,8 +99,11 @@ let lastDispatch = 0;
 function dispatchOnTraffic() {
   if (Date.now() - lastDispatch < 60000) return;
   lastDispatch = Date.now();
-  // Deliberately not awaited: a visitor should never wait on someone else's reminders.
-  dispatchDue().catch((err) => console.error('[scheduler]', err));
+  // Deliberately not awaited: a visitor should never wait on someone else's
+  // reminders, nor on someone else's stale quotes.
+  expireStaleQuotes()
+    .then(() => dispatchDue())
+    .catch((err) => console.error('[scheduler]', err));
 }
 
 /**

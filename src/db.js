@@ -114,6 +114,7 @@ const MIGRATIONS = [
   ['requests', 'payment_ref', 'TEXT'],
   ['requests', 'payment_provider', 'TEXT'],
   ['artists', 'reference_price_cents', 'INTEGER NOT NULL DEFAULT 0'],
+  ['messages', 'reply_to', 'TEXT'],
 ];
 
 // Idempotent by construction: each only touches rows not yet converted.

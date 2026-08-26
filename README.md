@@ -20,6 +20,8 @@ brief structuré → estimation automatique → devis + acompte → date bloqué
 | Projets hors budget découverts au 3ᵉ message | L'écart entre le budget annoncé et la fourchette est calculé et affiché des deux côtés |
 | Doubles réservations, congés oubliés | Chevauchements refusés côté serveur, périodes bloquables |
 | Oublis de rendez-vous | Rappels automatiques J-7, à la limite d'annulation, et J-1 |
+| Demandes vues trop tard | L'artiste est prévenu par email à chaque brief et à chaque acompte, avec de quoi trancher sans ouvrir l'app |
+| Devis oubliés | Balayage automatique : un devis dépassé libère le créneau, le client et l'artiste sont prévenus |
 | Cicatrisation et retours clients | Suivi automatique J+1, J+7, J+30 avec demande de photo cicatrisée |
 
 ## Démarrer
@@ -27,7 +29,7 @@ brief structuré → estimation automatique → devis + acompte → date bloqué
 ```bash
 npm run seed     # crée le studio de démo « Atelier Noir » et son historique
 npm start        # http://localhost:3000
-npm test         # 84 tests (estimation, API, serverless, libSQL, envoi, paiement)
+npm test         # 89 tests (estimation, API, serverless, libSQL, envoi, paiement)
 ```
 
 Compte de démonstration : **demo@inkflow.app** / **demotattoo**

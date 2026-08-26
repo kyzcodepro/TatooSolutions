@@ -137,8 +137,9 @@ export function createTransport({ fetchImpl = globalThis.fetch } = {}) {
     const { url, init } = provider.request(key, {
       from: senderFor(from, message.studio_name),
       to: message.recipient,
-      // Answering the studio directly is the natural reply, not a no-reply void.
-      replyTo: message.artist_email || '',
+      // Replying should reach a person: the studio for a client's message, the
+      // client for the studio's own notifications.
+      replyTo: message.reply_to || message.artist_email || '',
       subject: message.subject,
       text: renderBody(message),
     });

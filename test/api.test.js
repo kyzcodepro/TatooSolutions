@@ -340,3 +340,88 @@ test('health reports how mail is configured, without leaking the key', async () 
     delete process.env.INKFLOW_MAIL_KEY;
   }
 });
+
+test('a new brief reaches the artist, ready to triage from a phone', async () => {
+  const { call, artist } = await signUpArtist();
+  const anon = client();
+  // A budget well under the work: the artist should see that in the subject line.
+  await anon('POST', `/api/public/artists/${artist.slug}/requests`, brief({ budget_cents: 5000 }));
+
+  const messages = (await call('GET', '/api/messages')).data.messages;
+  const notice = messages.find((m) => m.kind === 'artist_new_request');
+  assert.ok(notice, 'the studio is told a brief arrived');
+  assert.equal(notice.recipient, artist.email);
+  // Hitting reply must reach the client, not the studio's own inbox.
+  assert.equal(notice.reply_to, 'camille@example.test');
+  assert.match(notice.subject, /budget à cadrer/);
+  assert.match(notice.body, /sous votre fourchette basse/);
+  assert.match(notice.body, /18 cm/);
+});
+
+test('a paid deposit reaches the artist too', async () => {
+  const { call, artist } = await signUpArtist();
+  const clientCall = client();
+  const created = await clientCall('POST', `/api/public/artists/${artist.slug}/requests`, brief());
+  const requestId = (await call('GET', '/api/requests')).data.requests[0].id;
+  await call('POST', `/api/requests/${requestId}/quote`, {
+    price_cents: 40000, proposed_start: inDays(14, 10), duration_hours: 3,
+  });
+  await clientCall('POST', `/api/public/quotes/${created.data.request.public_token}/accept`);
+
+  const messages = (await call('GET', '/api/messages')).data.messages;
+  const notice = messages.find((m) => m.kind === 'artist_deposit_paid');
+  assert.ok(notice, 'the studio learns the date is blocked');
+  assert.equal(notice.recipient, artist.email);
+  assert.match(notice.body, /Reste à percevoir/);
+});
+
+test('a quote that lapsed is swept, and both sides are told', async () => {
+  const { call, artist } = await signUpArtist();
+  const clientCall = client();
+  await clientCall('POST', `/api/public/artists/${artist.slug}/requests`, brief());
+  const requestId = (await call('GET', '/api/requests?status=new')).data.requests[0].id;
+  await call('POST', `/api/requests/${requestId}/quote`, {
+    price_cents: 30000, proposed_start: inDays(20, 10), duration_hours: 2,
+  });
+
+  const { getDb } = await import('../src/db.js');
+  const db = await getDb();
+  await db.run('UPDATE requests SET quote_expires_at = ? WHERE id = ?',
+    [new Date(Date.now() - 1000).toISOString(), requestId]);
+
+  const { expireStaleQuotes } = await import('../src/service.js');
+  assert.equal(await expireStaleQuotes(), 1);
+
+  const request = (await call('GET', `/api/requests/${requestId}`)).data.request;
+  assert.equal(request.status, 'expired', 'it no longer sits in the inbox as if it were live');
+
+  const kinds = (await call('GET', '/api/messages')).data.messages.map((m) => m.kind);
+  assert.ok(kinds.includes('quote_expired_client'));
+  assert.ok(kinds.includes('artist_quote_expired'));
+
+  // Sweeping again finds nothing: no duplicate messages on every pass.
+  assert.equal(await expireStaleQuotes(), 0);
+});
+
+test('a live quote and a booked one are left alone by the sweep', async () => {
+  const { call, artist } = await signUpArtist();
+  const clientCall = client();
+  const created = await clientCall('POST', `/api/public/artists/${artist.slug}/requests`, brief());
+  const requestId = (await call('GET', '/api/requests?status=new')).data.requests[0].id;
+  await call('POST', `/api/requests/${requestId}/quote`, {
+    price_cents: 30000, proposed_start: inDays(25, 10), duration_hours: 2, expires_in_days: 30,
+  });
+  await clientCall('POST', `/api/public/quotes/${created.data.request.public_token}/accept`);
+
+  const { expireStaleQuotes } = await import('../src/service.js');
+  assert.equal(await expireStaleQuotes(), 0);
+  assert.equal((await call('GET', `/api/requests/${requestId}`)).data.request.status, 'booked');
+});
+
+test('the scheduler sweeps before it sends', async () => {
+  const anon = client();
+  const res = await anon('GET', '/api/cron/dispatch');
+  assert.equal(res.status, 200);
+  assert.equal(typeof res.data.expired, 'number');
+  assert.equal(typeof res.data.dispatched, 'number');
+});

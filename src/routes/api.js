@@ -403,8 +403,10 @@ api.get('/api/cron/dispatch', async (req, res) => {
     const offered = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
     if (offered !== secret) throw new HttpError(401, 'Bad cron credentials');
   }
+  // Sweep first: an expiry queues messages this same pass will send.
+  const expired = await service.expireStaleQuotes();
   const dispatched = await dispatchDue();
-  json(res, 200, { dispatched, max_attempts: MAX_SEND_ATTEMPTS });
+  json(res, 200, { expired, dispatched, max_attempts: MAX_SEND_ATTEMPTS });
 });
 
 api.get('/api/stats', async (req, res, { url }) => {

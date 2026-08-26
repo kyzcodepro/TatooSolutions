@@ -10,16 +10,105 @@ const HOUR = 3600000;
 const DAY = 24 * HOUR;
 
 export async function queueMessage({
-  artistId, requestId = null, appointmentId = null, kind, recipient,
+  artistId, requestId = null, appointmentId = null, kind, recipient, replyTo = null,
   subject, body, scheduledFor = nowIso(), channel = 'email',
 }) {
   const db = await getDb();
   const info = await db.run(`
     INSERT INTO messages (artist_id, request_id, appointment_id, kind, channel, recipient,
-                          subject, body, scheduled_for, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [artistId, requestId, appointmentId, kind, channel, recipient, subject, body, scheduledFor, nowIso()]);
+                          reply_to, subject, body, scheduled_for, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [artistId, requestId, appointmentId, kind, channel, recipient, replyTo, subject, body, scheduledFor, nowIso()]);
   return info.lastInsertRowid;
+}
+
+/**
+ * The artist's own notifications. The promise of this product is that a studio
+ * stops living in its DMs — which only holds if the studio is actually told when
+ * something needs it. Everything needed to triage is in the message, so a reply
+ * can be written from a phone without opening the dashboard.
+ */
+export async function queueArtistNewRequest(artist, request, estimateResult) {
+  const budgetLine = request.budget_cents
+    ? `Budget annoncé : ${formatMoney(request.budget_cents, artist.currency)}`
+      + (estimateResult.budget_realistic ? '' : ` — ${formatMoney(estimateResult.budget_gap_cents, artist.currency)} sous votre fourchette basse`)
+    : 'Budget non précisé';
+
+  await queueMessage({
+    artistId: artist.id,
+    requestId: request.id,
+    kind: 'artist_new_request',
+    recipient: artist.email,
+    // Replying reaches the client directly.
+    replyTo: request.client_email,
+    subject: `Nouvelle demande — ${request.client_name}${estimateResult.budget_realistic ? '' : ' (budget à cadrer)'}`,
+    body: [
+      `${request.client_name} vient de vous envoyer un projet.`,
+      '',
+      request.description,
+      '',
+      `${request.size_cm} cm · ${request.placement || 'zone à définir'} · ${request.color_mode} · ${request.detail_level}`,
+      `Estimation : ${formatMoney(estimateResult.low_cents, artist.currency)} – ${formatMoney(estimateResult.high_cents, artist.currency)}`,
+      budgetLine,
+      request.availability?.length ? `Disponibilités : ${request.availability.join(', ')}` : '',
+      '',
+      `Répondre : {{base_url}}/app`,
+    ].filter(Boolean).join('\n'),
+  });
+}
+
+export async function queueArtistDepositPaid(artist, request, appointment) {
+  await queueMessage({
+    artistId: artist.id,
+    requestId: request.id,
+    appointmentId: appointment.id,
+    kind: 'artist_deposit_paid',
+    recipient: artist.email,
+    replyTo: request.client_email,
+    subject: `Acompte reçu — ${request.client_name}, ${dateFr(appointment.starts_at)}`,
+    body: [
+      `${request.client_name} a versé l'acompte : la date est bloquée.`,
+      '',
+      `Séance : ${dateFr(appointment.starts_at)}`,
+      `Acompte encaissé : ${formatMoney(appointment.deposit_cents, artist.currency)}`,
+      `Reste à percevoir le jour J : ${formatMoney(appointment.price_cents - appointment.deposit_cents, artist.currency)}`,
+      '',
+      `Votre agenda : {{base_url}}/app`,
+    ].join('\n'),
+  });
+}
+
+export async function queueQuoteExpired(artist, request) {
+  await queueMessage({
+    artistId: artist.id,
+    requestId: request.id,
+    kind: 'quote_expired_client',
+    recipient: request.client_email,
+    subject: `Votre devis chez ${artist.studio_name} a expiré`,
+    body: [
+      `Bonjour ${request.client_name},`,
+      '',
+      `Le devis de ${formatMoney(request.quote_price_cents, artist.currency)} n'a pas été confirmé dans le délai, `
+      + `et le créneau${request.proposed_start ? ` du ${dateFr(request.proposed_start)}` : ''} est de nouveau ouvert.`,
+      '',
+      `Votre projet vous intéresse toujours ? Renvoyez une demande, c'est deux minutes : {{base_url}}/b/${artist.slug}`,
+    ].join('\n'),
+  });
+
+  await queueMessage({
+    artistId: artist.id,
+    requestId: request.id,
+    kind: 'artist_quote_expired',
+    recipient: artist.email,
+    replyTo: request.client_email,
+    subject: `Devis expiré sans réponse — ${request.client_name}`,
+    body: [
+      `Le devis de ${formatMoney(request.quote_price_cents, artist.currency)} envoyé à ${request.client_name} a expiré sans acompte.`,
+      request.proposed_start ? `Le créneau du ${dateFr(request.proposed_start)} est libéré.` : '',
+      '',
+      `Relancer ou refuser : {{base_url}}/app`,
+    ].filter(Boolean).join('\n'),
+  });
 }
 
 const dateFr = (iso) => new Date(iso).toLocaleString('fr-FR', {

@@ -8,8 +8,9 @@ import { HttpError, bad, conflict, notFound } from './http.js';
 import { estimate, suggestDeposit, MAX_SESSION_HOURS } from './pricing.js';
 import { startDeposit, paymentsProvider } from './payments.js';
 import {
-  queueRequestReceived, queueQuoteSent, queueBookingConfirmed,
-  scheduleAppointmentReminders, scheduleAftercare, cancelPendingMessages, queueMessage,
+  queueRequestReceived, queueQuoteSent, queueBookingConfirmed, queueArtistNewRequest,
+  queueArtistDepositPaid, queueQuoteExpired, scheduleAppointmentReminders, scheduleAftercare,
+  cancelPendingMessages, queueMessage,
 } from './messages.js';
 
 export const REQUEST_STATUSES = ['new', 'quoted', 'booked', 'completed', 'declined', 'expired'];
@@ -68,8 +69,10 @@ export async function createRequest(artist, brief) {
   ]);
 
   const request = await db.get('SELECT * FROM requests WHERE id = ?', [info.lastInsertRowid]);
+  const hydrated = hydrateRequest(request, artist);
   await queueRequestReceived(artist, request, result);
-  return { request: hydrateRequest(request, artist), estimate: result };
+  await queueArtistNewRequest(artist, hydrated, result);
+  return { request: hydrated, estimate: result };
 }
 
 export async function listRequests(artistId, { status = null, limit = 100 } = {}) {
@@ -277,6 +280,7 @@ async function bookPaidRequest({ request, artist, reference }) {
   const appointment = await db.get('SELECT * FROM appointments WHERE id = ?', [info.lastInsertRowid]);
   const updatedRequest = await db.get('SELECT * FROM requests WHERE id = ?', [request.id]);
   await queueBookingConfirmed(artist, updatedRequest, appointment);
+  await queueArtistDepositPaid(artist, updatedRequest, appointment);
   await scheduleAppointmentReminders(artist, updatedRequest, appointment);
   return { appointment, already: false };
 }
@@ -420,6 +424,33 @@ export async function deleteBlock(artist, blockId) {
   const info = await db.run('DELETE FROM blocks WHERE id = ? AND artist_id = ?', [blockId, artist.id]);
   if (!info.changes) throw notFound('Block not found');
   return { deleted: true };
+}
+
+/* ------------------------------------------------------------ expiring quotes */
+
+/**
+ * A quote that lapsed was only noticed if the client happened to try to accept
+ * it. Until then it sat in the inbox as if it were live, held a slot informally
+ * and counted as a pending reply. This sweeps them, and tells both sides — the
+ * client because the date they were considering is gone, the artist because a
+ * quote going cold is exactly what a follow-up is for.
+ */
+export async function expireStaleQuotes(now = nowIso()) {
+  const db = await getDb();
+  const stale = await db.all(
+    "SELECT * FROM requests WHERE status = 'quoted' AND quote_expires_at IS NOT NULL AND quote_expires_at <= ?",
+    [now],
+  );
+
+  let expired = 0;
+  for (const request of stale) {
+    const artist = await getArtist(request.artist_id);
+    if (!artist) continue;
+    await db.run("UPDATE requests SET status = 'expired', updated_at = ? WHERE id = ?", [nowIso(), request.id]);
+    await queueQuoteExpired(artist, request);
+    expired += 1;
+  }
+  return expired;
 }
 
 /* --------------------------------------------------------------------- stats */
