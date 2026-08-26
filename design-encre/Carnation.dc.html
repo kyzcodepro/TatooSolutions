@@ -1,0 +1,142 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Libre+Franklin:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #A85742; text-decoration: none; border-bottom: 1px solid rgba(168,87,66,0.4); }
+    a:hover { color: #5F7256; }
+    .lab { font: 500 10.5px/1 'Libre Franklin', system-ui, sans-serif; letter-spacing: 0.17em; text-transform: uppercase; }
+    .num { font-variant-numeric: tabular-nums; }
+  </style>
+</helmet>
+
+<div style="width: 1160px; min-height: 1590px; background: #F4EDE6; color: #33261F; font-family: 'Libre Franklin', system-ui, sans-serif; font-size: 14px; line-height: 1.7">
+
+  <header style="padding: 72px 88px 0">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 24px">
+      <span style="font-family: Newsreader, Georgia, serif; font-weight: 400; font-size: 23px">Encre Australe</span>
+      <span class="lab" style="color: #A0907F">Montréal</span>
+    </div>
+
+    <div style="padding: 76px 0 0; max-width: 780px">
+      <h1 style="font-family: Newsreader, Georgia, serif; font-weight: 300; font-size: 66px; line-height: 1.12; letter-spacing: -0.015em; margin: 0 0 26px; text-wrap: pretty">
+        Racontez-nous la pièce.<br>On s’occupe du reste.
+      </h1>
+      <p style="margin: 0; max-width: 470px; color: #6E5D51; font-size: 16px; line-height: 1.75">
+        Pas de formulaire à rallonge, pas de devis qui traîne trois semaines.
+        Vous décrivez, vous voyez le prix, vous choisissez la date.
+      </p>
+    </div>
+  </header>
+
+  <main style="display: flex; gap: 72px; padding: 84px 88px 0; align-items: flex-start">
+    <section style="flex: 1 1 auto; min-width: 0">
+
+      <div class="lab" style="color: #A85742; margin-bottom: 28px">Le motif</div>
+      <div style="background: #FBF7F3; padding: 26px 28px; min-height: 96px; color: #6E5D51; font-family: Newsreader, Georgia, serif; font-size: 19px; line-height: 1.6">
+        Une chouette lapone sur l’omoplate, de face, beaucoup de texture dans le
+        plumage. Noir et gris, rien de dur dans le trait.
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; margin-top: 44px">
+        <div>
+          <div class="lab" style="color: #A0907F; margin-bottom: 12px">Emplacement</div>
+          <div style="font-family: Newsreader, Georgia, serif; font-size: 21px">Omoplate gauche</div>
+        </div>
+        <div>
+          <div class="lab" style="color: #A0907F; margin-bottom: 12px">Style</div>
+          <div style="font-family: Newsreader, Georgia, serif; font-size: 21px">Réalisme animalier</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 56px">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px">
+          <span class="lab" style="color: #A0907F">Plus grande dimension</span>
+          <span class="num" style="font-family: Newsreader, Georgia, serif; font-size: 30px">18 cm</span>
+        </div>
+        <div style="height: 6px; background: #E3D6C9; position: relative">
+          <div style="position: absolute; inset: 0 68% 0 0; background: #A85742"></div>
+          <div style="position: absolute; left: 32%; top: -6px; width: 18px; height: 18px; border-radius: 50%; background: #A85742; transform: translateX(-50%)"></div>
+        </div>
+      </div>
+
+      <div class="lab" style="color: #A0907F; margin: 48px 0 14px">Niveau de détail</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px">
+        <span style="padding: 11px 20px; background: #EAE0D6; color: #8A7A6C; font-size: 14px">Simple</span>
+        <span style="padding: 11px 20px; background: #EAE0D6; color: #8A7A6C; font-size: 14px">Moyen</span>
+        <span style="padding: 11px 20px; background: #A85742; color: #FBF7F3; font-weight: 500; font-size: 14px">Détaillé</span>
+        <span style="padding: 11px 20px; background: #EAE0D6; color: #8A7A6C; font-size: 14px">Hyperréalisme</span>
+      </div>
+
+      <div class="lab" style="color: #A0907F; margin: 34px 0 14px">Rendu</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px">
+        <span style="padding: 11px 20px; background: #EAE0D6; color: #8A7A6C; font-size: 14px">Ligne seule</span>
+        <span style="padding: 11px 20px; background: #EAE0D6; color: #8A7A6C; font-size: 14px">Noir plein</span>
+        <span style="padding: 11px 20px; background: #5F7256; color: #FBF7F3; font-weight: 500; font-size: 14px">Noir &amp; gris</span>
+        <span style="padding: 11px 20px; background: #EAE0D6; color: #8A7A6C; font-size: 14px">Couleur</span>
+      </div>
+
+      <div class="lab" style="color: #A0907F; margin: 48px 0 14px">Quand êtes-vous libre ?</div>
+      <p style="margin: 0 0 16px; color: #8A7A6C; font-size: 14px">Ouvert mardi 09:00–12:00, jeudi au samedi 11:00–19:00.</p>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px">
+        <span style="padding: 10px 18px; background: #FBF7F3; color: #6E5D51; font-size: 13.5px">Mardi matin</span>
+        <span style="padding: 10px 18px; background: #FBF7F3; color: #6E5D51; font-size: 13.5px">Jeudi après-midi</span>
+        <span style="padding: 10px 18px; background: #FBF7F3; color: #6E5D51; font-size: 13.5px">Samedi matin</span>
+      </div>
+    </section>
+
+    <aside style="flex: 0 0 372px; width: 372px; background: #FBF7F3; padding: 40px 36px">
+      <div class="lab" style="color: #A0907F; margin-bottom: 24px">Votre estimation</div>
+
+      <div class="num" style="font-family: Newsreader, Georgia, serif; font-weight: 300; font-size: 52px; line-height: 1; letter-spacing: -0.02em">
+        595<span style="color: #C4B3A3; padding: 0 8px">–</span>835 $
+      </div>
+      <div style="margin-top: 14px; color: #6E5D51; font-size: 14.5px">5 h 45 sur place, en une séance</div>
+
+      <div style="height: 1px; background: #E9DED2; margin: 32px 0 22px"></div>
+
+      <div style="display: grid; gap: 12px; font-size: 14px">
+        <div style="display: flex; justify-content: space-between"><span style="color: #8A7A6C">Pièce de référence — 10 cm</span><b class="num">220 $</b></div>
+        <div style="display: flex; justify-content: space-between"><span style="color: #8A7A6C">Taille 18 cm</span><b class="num" style="color: #A85742">+141 %</b></div>
+        <div style="display: flex; justify-content: space-between"><span style="color: #8A7A6C">Niveau de détail</span><b class="num" style="color: #A85742">+45 %</b></div>
+        <div style="display: flex; justify-content: space-between"><span style="color: #8A7A6C">Rendu</span><b class="num" style="color: #A85742">+10 %</b></div>
+      </div>
+
+      <div style="height: 1px; background: #E9DED2; margin: 22px 0"></div>
+
+      <div style="display: grid; gap: 12px; font-size: 14px">
+        <div style="display: flex; justify-content: space-between"><span style="color: #8A7A6C">Travail à l’aiguille</span><b class="num">5 h</b></div>
+        <div style="display: flex; justify-content: space-between"><span style="color: #8A7A6C">Installation et pauses</span><b class="num">+ 0,75 h</b></div>
+        <div style="display: flex; justify-content: space-between"><span style="color: #8A7A6C">Temps sur place</span><b class="num" style="color: #5F7256">5,75 h</b></div>
+      </div>
+
+      <div style="height: 1px; background: #E9DED2; margin: 26px 0 22px"></div>
+
+      <div style="display: flex; justify-content: space-between; align-items: baseline">
+        <span class="lab" style="color: #33261F">Acompte</span>
+        <b class="num" style="font-family: Newsreader, Georgia, serif; font-size: 28px; color: #A85742">215 $</b>
+      </div>
+      <p style="margin: 10px 0 0; color: #A0907F; font-size: 13px">30 % du devis. Le reste se règle sur place.</p>
+
+      <button type="button" style="display: block; width: 100%; margin-top: 30px; padding: 17px; background: #33261F; color: #F4EDE6; border: 0; font: 500 13.5px/1 'Libre Franklin', system-ui, sans-serif; letter-spacing: 0.1em; cursor: pointer">
+        Envoyer ma demande
+      </button>
+      <p style="margin: 14px 0 0; text-align: center; color: #A0907F; font-size: 12.5px">Aucun paiement à cette étape.</p>
+    </aside>
+  </main>
+
+  <footer style="margin: 80px 88px 0; padding: 26px 0 56px; border-top: 1px solid #E3D6C9; display: flex; justify-content: space-between">
+    <span class="lab" style="color: #B3A493">Encre Australe — 4180 rue Saint-Denis</span>
+    <span class="lab" style="color: #B3A493">Inkflow</span>
+  </footer>
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #D8A24A; text-decoration: none; border-bottom: 1px solid currentColor; }
+    a:hover { color: #E8E3D6; }
+    .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+    .lab { font: 500 10px/1 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: 0.16em; text-transform: uppercase; }
+    .num { font-variant-numeric: tabular-nums; }
+  </style>
+</helmet>
+
+<div style="width: 1160px; min-height: 1400px; background: #0F2236; color: #E3DECF; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 14px; line-height: 1.6; position: relative; overflow: hidden">
+
+  <!-- the drawing grid stays visible: this is a working document -->
+  <div style="position: absolute; inset: 0; background-image: linear-gradient(rgba(216,162,74,0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(216,162,74,0.055) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none"></div>
+
+  <div style="position: relative">
+    <header style="padding: 54px 60px 0">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 24px">
+        <div style="display: flex; align-items: baseline; gap: 16px">
+          <span style="font-family: Syne, system-ui, sans-serif; font-weight: 700; font-size: 22px; letter-spacing: -0.01em">ENCRE AUSTRALE</span>
+          <span class="lab" style="color: #7E8FA0">Fiche projet</span>
+        </div>
+        <span class="lab" style="color: #7E8FA0">Réf. 2026-0418 · Montréal</span>
+      </div>
+
+      <div style="height: 1px; background: rgba(216,162,74,0.35); margin: 24px 0 0"></div>
+
+      <div style="padding: 44px 0 30px; max-width: 720px">
+        <h1 style="font-family: Syne, system-ui, sans-serif; font-weight: 700; font-size: 56px; line-height: 1.03; letter-spacing: -0.03em; margin: 0 0 20px; text-wrap: pretty">
+          Un devis se calcule.<br>Il ne se négocie pas en DM.
+        </h1>
+        <p style="margin: 0; max-width: 520px; color: #9FAEBE; font-size: 15px">
+          Renseignez la pièce. La fourchette, la durée et l’acompte se recalculent
+          à chaque réponse, sur les mêmes règles que celles de l’atelier.
+        </p>
+      </div>
+    </header>
+
+    <div style="height: 1px; background: rgba(216,162,74,0.35); margin: 0 60px"></div>
+
+    <main style="display: flex; gap: 48px; padding: 40px 60px 0; align-items: flex-start">
+      <section style="flex: 1 1 auto; min-width: 0">
+        <div class="lab" style="color: #D8A24A; margin-bottom: 22px">01 — Le motif</div>
+        <div style="border: 1px solid #23405C; background: #0B1B2C; padding: 16px 18px; min-height: 82px; color: #9FAEBE; font-size: 14.5px">
+          Une chouette lapone sur l’omoplate, de face, beaucoup de texture dans le
+          plumage. Noir et gris, rien de dur dans le trait.
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 24px">
+          <div>
+            <div class="lab" style="color: #7E8FA0; margin-bottom: 9px">Emplacement</div>
+            <div style="border: 1px solid #23405C; background: #0B1B2C; padding: 11px 14px; font-size: 15px">Omoplate gauche</div>
+          </div>
+          <div>
+            <div class="lab" style="color: #7E8FA0; margin-bottom: 9px">Style</div>
+            <div style="border: 1px solid #23405C; background: #0B1B2C; padding: 11px 14px; font-size: 15px">Réalisme animalier</div>
+          </div>
+        </div>
+
+        <div class="lab" style="color: #D8A24A; margin: 36px 0 22px">02 — Paramètres</div>
+
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px">
+          <span class="lab" style="color: #7E8FA0">Plus grande dimension</span>
+          <span class="num mono" style="font-size: 22px; color: #D8A24A">18 cm</span>
+        </div>
+        <div style="height: 3px; background: #23405C; position: relative">
+          <div style="position: absolute; inset: 0 68% 0 0; background: #D8A24A"></div>
+          <div style="position: absolute; left: 32%; top: -5px; width: 13px; height: 13px; background: #E3DECF; transform: translateX(-50%)"></div>
+        </div>
+        <div class="lab num" style="display: flex; justify-content: space-between; color: #6B7C8D; margin-top: 8px">
+          <span>2</span><span>15</span><span>30</span><span>45</span><span>60</span>
+        </div>
+
+        <div class="lab" style="color: #7E8FA0; margin: 30px 0 11px">Niveau de détail</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <span style="padding: 9px 15px; border: 1px solid #23405C; color: #7E8FA0; font-size: 13.5px">Simple</span>
+          <span style="padding: 9px 15px; border: 1px solid #23405C; color: #7E8FA0; font-size: 13.5px">Moyen</span>
+          <span style="padding: 9px 15px; border: 1px solid #D8A24A; background: #D8A24A; color: #0F2236; font-weight: 600; font-size: 13.5px">Détaillé</span>
+          <span style="padding: 9px 15px; border: 1px solid #23405C; color: #7E8FA0; font-size: 13.5px">Hyperréalisme</span>
+        </div>
+
+        <div class="lab" style="color: #7E8FA0; margin: 26px 0 11px">Rendu</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <span style="padding: 9px 15px; border: 1px solid #23405C; color: #7E8FA0; font-size: 13.5px">Ligne seule</span>
+          <span style="padding: 9px 15px; border: 1px solid #23405C; color: #7E8FA0; font-size: 13.5px">Noir plein</span>
+          <span style="padding: 9px 15px; border: 1px solid #D8A24A; background: #D8A24A; color: #0F2236; font-weight: 600; font-size: 13.5px">Noir &amp; gris</span>
+          <span style="padding: 9px 15px; border: 1px solid #23405C; color: #7E8FA0; font-size: 13.5px">Couleur</span>
+        </div>
+
+        <div class="lab" style="color: #D8A24A; margin: 36px 0 18px">03 — Disponibilités</div>
+        <p style="margin: 0 0 14px; color: #7E8FA0; font-size: 13px">Ouvert mardi 09:00–12:00, jeudi au samedi 11:00–19:00.</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <span style="padding: 8px 14px; border: 1px solid #23405C; color: #9FAEBE; font-size: 13px">Mardi matin</span>
+          <span style="padding: 8px 14px; border: 1px solid #23405C; color: #9FAEBE; font-size: 13px">Jeudi après-midi</span>
+          <span style="padding: 8px 14px; border: 1px solid #23405C; color: #9FAEBE; font-size: 13px">Samedi matin</span>
+        </div>
+      </section>
+
+      <aside style="flex: 0 0 396px; width: 396px; border: 1px solid #D8A24A; background: #0B1B2C; padding: 28px">
+        <div class="lab" style="color: #D8A24A; margin-bottom: 18px">Estimation</div>
+        <div class="num mono" style="font-size: 40px; line-height: 1; letter-spacing: -0.02em; color: #E3DECF">
+          595<span style="color: #6B7C8D; padding: 0 8px">–</span>835 $
+        </div>
+        <div style="margin-top: 10px; color: #9FAEBE; font-size: 13.5px">5 h 45 sur place, en une séance</div>
+
+        <div style="height: 1px; background: #23405C; margin: 22px 0 16px"></div>
+        <div class="lab" style="color: #7E8FA0; margin-bottom: 12px">Le calcul</div>
+        <div style="display: grid; gap: 7px; font-size: 13.5px">
+          <div style="display: flex; justify-content: space-between"><span style="color: #9FAEBE">Pièce de référence — 10 cm</span><b class="num mono">220 $</b></div>
+          <div style="display: flex; justify-content: space-between"><span style="color: #9FAEBE">Taille 18 cm</span><b class="num mono" style="color: #D8A24A">+141 %</b></div>
+          <div style="display: flex; justify-content: space-between"><span style="color: #9FAEBE">Niveau de détail</span><b class="num mono" style="color: #D8A24A">+45 %</b></div>
+          <div style="display: flex; justify-content: space-between"><span style="color: #9FAEBE">Rendu</span><b class="num mono" style="color: #D8A24A">+10 %</b></div>
+        </div>
+
+        <div style="height: 1px; background: #23405C; margin: 18px 0 16px"></div>
+        <div class="lab" style="color: #7E8FA0; margin-bottom: 12px">Le temps</div>
+        <div style="display: grid; gap: 7px; font-size: 13.5px">
+          <div style="display: flex; justify-content: space-between"><span style="color: #9FAEBE">Travail à l’aiguille</span><b class="num mono">5 h</b></div>
+          <div style="display: flex; justify-content: space-between"><span style="color: #9FAEBE">Installation et pauses</span><b class="num mono">+ 0,75 h</b></div>
+          <div style="display: flex; justify-content: space-between"><span style="color: #9FAEBE">Temps sur place</span><b class="num mono" style="color: #D8A24A">5,75 h</b></div>
+        </div>
+
+        <div style="height: 1px; background: #D8A24A; margin: 20px 0 16px"></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline">
+          <span class="lab" style="color: #E3DECF">Acompte</span>
+          <b class="num mono" style="font-size: 24px; color: #D8A24A">215 $</b>
+        </div>
+        <p style="margin: 7px 0 0; color: #6B7C8D; font-size: 12.5px">30 % du devis. Le reste sur place.</p>
+
+        <button type="button" style="display: block; width: 100%; margin-top: 22px; padding: 15px; background: #D8A24A; color: #0F2236; border: 0; font: 600 13px/1 'IBM Plex Mono', monospace; letter-spacing: 0.13em; text-transform: uppercase; cursor: pointer">
+          Envoyer la demande
+        </button>
+        <p style="margin: 12px 0 0; text-align: center; color: #6B7C8D; font-size: 12px">Aucun paiement à cette étape.</p>
+      </aside>
+    </main>
+
+    <footer style="margin: 52px 60px 0; padding: 20px 0 46px; border-top: 1px solid rgba(216,162,74,0.35); display: flex; justify-content: space-between">
+      <span class="lab" style="color: #6B7C8D">Encre Australe — 4180 rue Saint-Denis</span>
+      <span class="lab" style="color: #6B7C8D">Inkflow</span>
+    </footer>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,70 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1160,
+      "h": 1530,
+      "title": "Encre & Papier — réservation",
+      "is_interactive": true
+    },
+    {
+      "file": "Atelier.dc.html",
+      "x": 1280,
+      "y": 0,
+      "w": 1360,
+      "h": 1150,
+      "title": "Encre & Papier — l'atelier"
+    },
+    {
+      "file": "BleuDeTravail.dc.html",
+      "x": 2760,
+      "y": 0,
+      "w": 1160,
+      "h": 1410,
+      "title": "Piste B — Bleu de travail"
+    },
+    {
+      "file": "Carnation.dc.html",
+      "x": 4040,
+      "y": 0,
+      "w": 1160,
+      "h": 1600,
+      "title": "Piste C — Carnation"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "piste-a",
+      "x": 0,
+      "y": -400,
+      "w": 480,
+      "text": "PISTE A — Encre & Papier (proposée)\n\nUne planche de flash imprimée : papier os, encre chaude, un oxblood et un bleu de Prusse. Filets d'un cheveu au lieu de cartes, numéros de planche, marques de repérage d'imprimeur.\n\nPourquoi : un tatoueur vit dans le papier. Le produit lui parle sa langue au lieu de celle d'un tableau de bord.\n\nCe que ça coûte : le clair impose une discipline de contraste, et le Bodoni ne descend pas sous 20 px."
+    },
+    {
+      "id": "essayez",
+      "x": 560,
+      "y": -400,
+      "w": 380,
+      "text": "L'écran de réservation est vivant : bougez la taille, changez le détail et le rendu. Le prix, la fourchette, les heures et l'acompte se recalculent avec les vraies formules du produit — pas des chiffres écrits en dur."
+    },
+    {
+      "id": "piste-b",
+      "x": 2760,
+      "y": -400,
+      "w": 480,
+      "text": "PISTE B — Bleu de travail\n\nCyanotype et papier calque : bleu de Prusse, ocre, grille de tracé laissée visible, libellés en chasse fixe. Le devis se lit comme un plan d'atelier.\n\nPourquoi : ça assume l'outil de travail, et le sombre tient mieux dans un studio à lumière basse.\n\nCe que ça coûte : plus froid, moins accueillant pour le client qui découvre l'atelier."
+    },
+    {
+      "id": "piste-c",
+      "x": 4040,
+      "y": -400,
+      "w": 480,
+      "text": "PISTE C — Carnation\n\nTerre cuite, sauge et sable sur blanc chaud. Aucune bordure : l'espace fait la structure. Newsreader léger en très grand.\n\nPourquoi : c'est la plus douce des trois, et un premier tatouage se décide souvent avec un peu d'appréhension.\n\nCe que ça coûte : le contraste bas fatigue sur un tableau de bord dense, et il faut beaucoup de place."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

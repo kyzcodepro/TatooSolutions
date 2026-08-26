@@ -1,0 +1,310 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500;6..96,600&family=Archivo:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #8E3B2F; text-decoration: none; border-bottom: 1px solid currentColor; }
+    a:hover { color: #1F6570; }
+    input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; }
+    input[type=range]::-webkit-slider-runnable-track { height: 1px; background: #C9BC9F; }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none; width: 15px; height: 15px;
+      background: #221E18; margin-top: -7px; border-radius: 50%; cursor: grab;
+    }
+    input[type=range]::-moz-range-track { height: 1px; background: #C9BC9F; }
+    input[type=range]::-moz-range-thumb { width: 15px; height: 15px; background: #221E18; border: 0; border-radius: 50%; }
+    .lab { font: 500 10px/1 Archivo, system-ui, sans-serif; letter-spacing: 0.19em; text-transform: uppercase; }
+    .num { font-variant-numeric: tabular-nums; }
+  </style>
+</helmet>
+
+<div style="width: 1160px; min-height: 1520px; background: {{paper}}; color: #221E18; font-family: Archivo, system-ui, sans-serif; font-size: 14px; line-height: 1.6; position: relative; overflow: hidden">
+
+  <!-- printer's registration marks: this is a plate, not a web page -->
+  <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#C9BC9F" stroke-width="0.75" style="position: absolute; top: 22px; left: 22px"><path d="M11 0v22M0 11h22"></path><circle cx="11" cy="11" r="5.5"></circle></svg>
+  <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#C9BC9F" stroke-width="0.75" style="position: absolute; top: 22px; right: 22px"><path d="M11 0v22M0 11h22"></path><circle cx="11" cy="11" r="5.5"></circle></svg>
+
+  <header style="padding: 58px 64px 0">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 24px">
+      <div style="display: flex; align-items: baseline; gap: 14px">
+        <span class="lab" style="color: #8A7F6A">Pl. 01</span>
+        <span style="font-family: 'Bodoni Moda', Didot, 'Times New Roman', serif; font-size: 27px; letter-spacing: 0.01em">Encre Australe</span>
+        <span class="lab" style="color: #8A7F6A">Montréal</span>
+      </div>
+      <div class="lab" style="color: #8A7F6A">Réservation · Estimation immédiate</div>
+    </div>
+
+    <div style="height: 1px; background: #DCD1B9; margin: 26px 0 0"></div>
+
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 48px; padding: 40px 0 34px">
+      <div style="max-width: 640px">
+        <h1 style="font-family: 'Bodoni Moda', Didot, serif; font-weight: 400; font-size: 62px; line-height: 1.02; letter-spacing: -0.015em; margin: 0 0 18px; text-wrap: pretty">
+          Décrivez la pièce.<br>Le prix s’écrit tout seul.
+        </h1>
+        <p style="margin: 0; max-width: 500px; color: #5E5649; font-size: 15px">
+          Chaque réponse déplace la fourchette sous vos yeux. Rien n’est engagé avant
+          l’acompte, et l’acompte ne part qu’une fois la date acceptée.
+        </p>
+      </div>
+      <svg width="118" height="118" viewBox="0 0 120 120" fill="none" stroke="{{accent}}" stroke-width="1.1" stroke-linecap="round" style="flex: 0 0 auto; opacity: 0.85">
+        <circle cx="60" cy="60" r="9"></circle>
+        <path d="M60 51c0-11 7-19 17-19 12 0 18 10 14 20-3 8-13 12-22 10"></path>
+        <path d="M69 60c11 0 19 7 19 17 0 12-10 18-20 14-8-3-12-13-10-22"></path>
+        <path d="M60 69c0 11-7 19-17 19-12 0-18-10-14-20 3-8 13-12 22-10"></path>
+        <path d="M51 60c-11 0-19-7-19-17 0-12 10-18 20-14 8 3 12 13 10 22"></path>
+        <path d="M60 34V12M60 108V86M34 60H12M108 60H86" stroke="#C9BC9F" stroke-width="0.75"></path>
+      </svg>
+    </div>
+  </header>
+
+  <div style="height: 1px; background: #221E18; margin: 0 64px"></div>
+
+  <main style="display: flex; gap: 56px; padding: 44px 64px 0; align-items: flex-start">
+
+    <!-- the brief -->
+    <section style="flex: 1 1 auto; min-width: 0">
+
+      <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 26px">
+        <span class="lab" style="color: {{accent}}">§ 1</span>
+        <span class="lab" style="color: #8A7F6A">Le projet</span>
+      </div>
+
+      <label class="lab" style="display: block; color: #5E5649; margin-bottom: 9px">Le motif</label>
+      <div style="border: 1px solid #DCD1B9; background: #FDFBF6; padding: 14px 16px; min-height: 86px; color: #5E5649; font-size: 14.5px; font-style: italic">
+        Une chouette lapone sur l’omoplate, de face, beaucoup de texture dans le
+        plumage. Noir et gris, rien de dur dans le trait.
+      </div>
+
+      <div style="display: flex; gap: 22px; margin-top: 26px">
+        <div style="flex: 1 1 0; min-width: 0">
+          <label class="lab" style="display: block; color: #5E5649; margin-bottom: 9px">Emplacement</label>
+          <div style="border-bottom: 1px solid #221E18; padding-bottom: 7px; font-size: 15px">Omoplate gauche</div>
+        </div>
+        <div style="flex: 1 1 0; min-width: 0">
+          <label class="lab" style="display: block; color: #5E5649; margin-bottom: 9px">Style</label>
+          <div style="border-bottom: 1px solid #221E18; padding-bottom: 7px; font-size: 15px">Réalisme animalier</div>
+        </div>
+      </div>
+
+      <div style="height: 1px; background: #DCD1B9; margin: 38px 0 34px"></div>
+
+      <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 26px">
+        <span class="lab" style="color: {{accent}}">§ 2</span>
+        <span class="lab" style="color: #8A7F6A">Ce qui fait le prix</span>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px">
+        <label class="lab" style="color: #5E5649">Plus grande dimension</label>
+        <span class="num" style="font-family: 'Bodoni Moda', Didot, serif; font-size: 26px">{{size}} cm</span>
+      </div>
+      <input type="range" min="2" max="60" step="1" value="{{size}}" onChange="{{setSize}}" style="width: 100%; height: 15px; display: block; cursor: grab">
+      <div class="lab num" style="display: flex; justify-content: space-between; color: #A2957D; margin-top: 6px">
+        <span>2</span><span>15</span><span>30</span><span>45</span><span>60</span>
+      </div>
+
+      <label class="lab" style="display: block; color: #5E5649; margin: 32px 0 11px">Niveau de détail</label>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px">
+        <sc-for list="{{detailItems}}" as="d" hint-placeholder-count="4">
+          <button type="button" onClick="{{d.pick}}" style="{{d.chip}}">{{d.label}}</button>
+        </sc-for>
+      </div>
+
+      <label class="lab" style="display: block; color: #5E5649; margin: 26px 0 11px">Rendu</label>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px">
+        <sc-for list="{{colorItems}}" as="c" hint-placeholder-count="4">
+          <button type="button" onClick="{{c.pick}}" style="{{c.chip}}">{{c.label}}</button>
+        </sc-for>
+      </div>
+
+      <div style="height: 1px; background: #DCD1B9; margin: 38px 0 34px"></div>
+
+      <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 22px">
+        <span class="lab" style="color: {{accent}}">§ 3</span>
+        <span class="lab" style="color: #8A7F6A">Vos disponibilités</span>
+      </div>
+      <p style="margin: 0 0 14px; color: #5E5649; font-size: 13.5px">
+        Ouvert mardi 09:00–12:00, jeudi au samedi 11:00–19:00.
+      </p>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px">
+        <sc-for list="{{slots}}" as="s" hint-placeholder-count="5">
+          <span style="{{s.chip}}">{{s.label}}</span>
+        </sc-for>
+      </div>
+    </section>
+
+    <!-- the estimate: the whole reason this page exists -->
+    <aside style="flex: 0 0 396px; width: 396px; border: 1px solid #221E18; background: #FDFBF6; padding: 30px 30px 26px; position: relative">
+      <div style="position: absolute; top: -1px; left: -1px; width: 44px; height: 4px; background: {{accent}}"></div>
+
+      <div class="lab" style="color: #8A7F6A; margin-bottom: 20px">Estimation en direct</div>
+
+      <div class="num" style="font-family: 'Bodoni Moda', Didot, serif; font-size: 46px; line-height: 1; letter-spacing: -0.02em">
+        {{low}}<span style="color: #A2957D; padding: 0 6px">–</span>{{high}}
+      </div>
+      <div style="margin-top: 10px; color: #5E5649; font-size: 13.5px">{{summary}}</div>
+
+      <div style="height: 1px; background: #DCD1B9; margin: 24px 0 18px"></div>
+
+      <div class="lab" style="color: #8A7F6A; margin-bottom: 13px">Le calcul</div>
+      <sc-for list="{{factors}}" as="f" hint-placeholder-count="4">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; font-size: 13.5px">
+          <span style="color: #5E5649">{{f.label}}</span>
+          <b class="num" style="{{f.style}}">{{f.value}}</b>
+        </div>
+      </sc-for>
+
+      <div style="height: 1px; background: #DCD1B9; margin: 18px 0"></div>
+
+      <div class="lab" style="color: #8A7F6A; margin-bottom: 13px">Le temps</div>
+      <sc-for list="{{timeRows}}" as="t" hint-placeholder-count="3">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; font-size: 13.5px">
+          <span style="color: #5E5649">{{t.label}}</span>
+          <b class="num" style="{{t.style}}">{{t.value}}</b>
+        </div>
+      </sc-for>
+
+      <div style="height: 1px; background: #221E18; margin: 20px 0 18px"></div>
+
+      <div style="display: flex; justify-content: space-between; align-items: baseline">
+        <span class="lab" style="color: #221E18">Acompte à verser</span>
+        <b class="num" style="font-family: 'Bodoni Moda', Didot, serif; font-size: 25px; color: {{accent}}">{{deposit}}</b>
+      </div>
+      <p style="margin: 7px 0 0; color: #8A7F6A; font-size: 12.5px">
+        30 % du devis. Le reste se règle sur place, le jour de la séance.
+      </p>
+
+      <button type="button" style="display: block; width: 100%; margin-top: 24px; padding: 15px; background: #221E18; color: {{paper}}; border: 0; font: 500 13px/1 Archivo, system-ui, sans-serif; letter-spacing: 0.13em; text-transform: uppercase; cursor: pointer">
+        Envoyer la demande
+      </button>
+      <p style="margin: 12px 0 0; text-align: center; color: #8A7F6A; font-size: 12px">
+        Aucun paiement à cette étape.
+      </p>
+
+      <div style="height: 1px; background: #DCD1B9; margin: 22px 0 16px"></div>
+      <div style="display: flex; justify-content: space-between; font-size: 12.5px; color: #5E5649">
+        <span>Minimum de l’atelier</span><b class="num">90 $</b>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 12.5px; color: #5E5649; margin-top: 5px">
+        <span>Report gratuit jusqu’à</span><b class="num">48 h avant</b>
+      </div>
+    </aside>
+  </main>
+
+  <footer style="margin: 56px 64px 0; padding: 20px 0 46px; border-top: 1px solid #DCD1B9; display: flex; justify-content: space-between; align-items: baseline">
+    <span class="lab" style="color: #A2957D">Encre Australe — 4180 rue Saint-Denis, Montréal</span>
+    <span class="lab" style="color: #A2957D">Inkflow</span>
+  </footer>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{
+  "accent": {"editor": "color", "default": "#8E3B2F", "options": ["#8E3B2F", "#1F6570", "#6B5B95", "#2F5D3A"], "section": "Encre"},
+  "paper": {"editor": "color", "default": "#F7F2E8", "options": ["#F7F2E8", "#F2EFE9", "#F6EDE4", "#EFEDE6"], "section": "Encre"},
+  "refPrice": {"editor": "int", "default": 220, "min": 60, "max": 900, "step": 10, "unit": "$", "section": "Atelier"},
+  "$preview": {"width": 1160, "height": 1530}
+}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { size: 18, detail: 'high', color: 'blackgrey' };
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#8E3B2F';
+    const paper = this.props.paper ?? '#F7F2E8';
+    const reference = this.props.refPrice ?? 220;
+    const minimum = 90;
+    const { size, detail, color } = this.state;
+
+    // The studio's real engine, so the page moves the way the product does.
+    const RATE = 1.1 / Math.pow(10, 1.5);
+    const sizeWeight = (cm) => 0.4 + RATE * Math.pow(cm, 1.5);
+    const r2 = (n) => Math.round(n * 100) / 100;
+    const to5 = (v) => Math.round(v / 5) * 5;
+    const quarter = (h) => Math.max(0.25, Math.round(h * 4) / 4);
+
+    const PRICE_DETAIL = { simple: 0.7, medium: 1, high: 1.45, hyperrealism: 2 };
+    const PRICE_COLOR = { linework: 0.85, blackwork: 1, blackgrey: 1.1, color: 1.35 };
+    const TIME_DETAIL = { simple: 0.55, medium: 1, high: 1.7, hyperrealism: 3.2 };
+    const TIME_COLOR = { linework: 0.7, blackwork: 0.85, blackgrey: 1, color: 1.3 };
+
+    const sizeFactor = r2(sizeWeight(size) / 1.5);
+    const detailFactor = PRICE_DETAIL[detail];
+    const colorFactor = PRICE_COLOR[color];
+    const midpoint = Math.max(minimum, Math.round(reference * sizeFactor * detailFactor * colorFactor));
+    const weight = sizeWeight(size) * detailFactor * colorFactor;
+    const spread = Math.min(0.3, Math.max(0.12, 0.1 + weight * 0.014));
+
+    const needle = quarter(1.25 * Math.pow(size / 10, 1.5) * TIME_DETAIL[detail] * TIME_COLOR[color]);
+    const setup = Math.min(1, Math.max(0.5, 0.4 + 0.02 * size));
+    const sessions = Math.max(1, Math.ceil(needle / Math.max(0.5, 6 - setup)));
+    const chair = quarter(needle + sessions * setup);
+
+    const money = (v) => new Intl.NumberFormat('fr-CA', { maximumFractionDigits: 0 }).format(v) + ' $';
+    const hours = (h) => String(h).replace('.', ',') + ' h';
+    const pct = (f) => (f > 1 ? '+' : '') + Math.round((f - 1) * 100) + ' %';
+    const tone = (f) => (f > 1 ? accent : (f < 1 ? '#1F6570' : '#5E5649'));
+
+    const chipFor = (on) => 'padding: 9px 15px; border: 1px solid ' + (on ? '#221E18' : '#DCD1B9')
+      + '; background: ' + (on ? '#221E18' : 'transparent')
+      + '; color: ' + (on ? paper : '#5E5649')
+      + '; font: 400 13.5px/1.2 Archivo, system-ui, sans-serif; cursor: pointer';
+
+    const detailItems = [
+      ['simple', 'Simple'], ['medium', 'Moyen'], ['high', 'Détaillé'], ['hyperrealism', 'Hyperréalisme'],
+    ].map(([id, label]) => ({
+      id, label, chip: chipFor(id === detail), pick: () => this.setState({ detail: id }),
+    }));
+
+    const colorItems = [
+      ['linework', 'Ligne seule'], ['blackwork', 'Noir plein'],
+      ['blackgrey', 'Noir & gris'], ['color', 'Couleur'],
+    ].map(([id, label]) => ({
+      id, label, chip: chipFor(id === color), pick: () => this.setState({ color: id }),
+    }));
+
+    const slotChip = 'padding: 8px 14px; border: 1px solid #DCD1B9; color: #5E5649; font-size: 13px';
+    const slots = ['Mardi matin', 'Jeudi après-midi', 'Vendredi après-midi', 'Samedi matin', 'Samedi après-midi']
+      .map((label) => ({ label, chip: slotChip }));
+
+    const rowValue = 'font-weight: 600';
+    const factors = [
+      { label: 'Pièce de référence — 10 cm', value: money(reference), style: rowValue + '; color: #221E18' },
+      { label: 'Taille ' + size + ' cm', value: pct(sizeFactor), style: rowValue + '; color: ' + tone(sizeFactor) },
+      { label: 'Niveau de détail', value: pct(detailFactor), style: rowValue + '; color: ' + tone(detailFactor) },
+      { label: 'Rendu', value: pct(colorFactor), style: rowValue + '; color: ' + tone(colorFactor) },
+    ];
+    if (midpoint === minimum) {
+      factors.push({ label: 'Minimum de l’atelier appliqué', value: money(minimum), style: rowValue + '; color: #1F6570' });
+    }
+
+    const timeRows = [
+      { label: 'Travail à l’aiguille', value: hours(needle), style: rowValue + '; color: #221E18' },
+      { label: 'Installation et pauses' + (sessions > 1 ? ' (×' + sessions + ')' : ''), value: '+ ' + hours(quarter(chair - needle)), style: rowValue + '; color: #5E5649' },
+      { label: 'Temps sur place', value: hours(chair), style: rowValue + '; color: ' + accent },
+    ];
+
+    const summary = sessions > 1
+      ? hours(chair) + ' sur place, en ' + sessions + ' séances'
+      : hours(chair) + ' sur place, en une séance';
+
+    return {
+      accent, paper, size: size,
+      low: money(to5(midpoint * (1 - spread))),
+      high: money(to5(midpoint * (1 + spread))),
+      deposit: money(to5(midpoint * 0.3)),
+      summary, factors, timeRows, detailItems, colorItems, slots,
+      setSize: (event) => this.setState({ size: Number(event.target.value) }),
+    };
+  }
+}
+</script>
+</body>
+</html>

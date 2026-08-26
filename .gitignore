@@ -6,6 +6,11 @@ data/
 .DS_Store
 public/build.json
 
-# Canvas de design : sortie assemblée (2,5 Mo, régénérée depuis design/*.dc.html)
+# Canvas de design : sortie assemblée (~2,5 Mo, régénérée depuis les *.dc.html)
 design/*.html
 !design/*.dc.html
+design-*/*.html
+!design-*/*.dc.html
+# Celui-ci reste à la racine : l'adresse de l'artefact publié est liée à ce
+# chemin, le republier d'ailleurs créerait un second canevas.
+/encre-et-papier.html
