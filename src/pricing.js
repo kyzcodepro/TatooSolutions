@@ -43,27 +43,43 @@ export const MAX_SESSION_HOURS = 6;
 /** The size everything is measured against: the studio's reference piece. */
 export const REFERENCE_SIZE_CM = 10;
 
-// The size curve, continuous through observed anchors. Bands were tempting and
-// wrong: at a boundary one centimetre moved the price by half, and inside a band
-// four centimetres moved nothing — a client watching that stops believing it.
-const SIZE_ANCHORS = [[2, 0.5], [5, 0.75], [10, 1.5], [15, 2.5], [20, 4], [30, 6], [40, 9]];
-const BEYOND_LAST_PER_CM = 0.25;
+// The size curve.
+//
+// Bands were the first attempt and were wrong: at a boundary one centimetre moved
+// the price by half, and inside a band four centimetres moved nothing. A table of
+// anchors joined by straight lines replaced them, and was wrong more quietly —
+// the price was continuous but its slope was not, so the cost of one more
+// centimetre jumped every time the client crossed an anchor: 12.5 % at 5 cm,
+// 20 % at 6 cm, 8.7 % at 15 cm, 12 % at 16 cm. Dragging the size control felt
+// like the price was surging and stalling at random. Worse, the anchors implied
+// a scaling exponent that swung between 0.44 and 1.63 from one segment to the
+// next, which is noise nobody chose.
+//
+// What a tattoo actually costs has two parts, and they behave differently. There
+// is a fixed part — the sitting, the stencil, the setup — which is why a tiny
+// piece is never nearly free. And there is the work itself, which grows faster
+// than the longest dimension because it fills an area, but slower than the area
+// itself because a big piece carries proportionally more open space. So:
+//
+//     weight = FIXED + RATE * size^EXPONENT
+//
+// fitted to the three sizes a studio can actually judge: a 2 cm flash at about a
+// third of the reference piece, the 10 cm reference at 1.5, and a 40 cm back
+// piece at about six times the reference. The result is smooth everywhere, and
+// so is its slope.
+const SIZE_FIXED = 0.4;
+const SIZE_EXPONENT = 1.5;
+/** The reference piece weighs exactly this, which is what makes it the reference. */
+const REFERENCE_WEIGHT = 1.5;
+// Derived rather than typed, so the curve passes through the reference exactly.
+// A studio migrating off an hourly rate has its reference price computed from this
+// weight, and a rounding drift here would quietly reprice every one of them.
+const SIZE_RATE = (REFERENCE_WEIGHT - SIZE_FIXED) / (REFERENCE_SIZE_CM ** SIZE_EXPONENT);
 
-/** Relative weight of a size, in the same units as the anchors. */
+/** Relative weight of a size, in the same units as the reference piece. */
 export function sizeWeight(sizeCm) {
   const size = Math.max(1, Number(sizeCm) || 1);
-  const [firstCm, firstWeight] = SIZE_ANCHORS[0];
-  if (size <= firstCm) return (size / firstCm) * firstWeight;
-
-  for (let i = 1; i < SIZE_ANCHORS.length; i++) {
-    const [cm, weight] = SIZE_ANCHORS[i];
-    if (size <= cm) {
-      const [prevCm, prevWeight] = SIZE_ANCHORS[i - 1];
-      return prevWeight + ((size - prevCm) / (cm - prevCm)) * (weight - prevWeight);
-    }
-  }
-  const [lastCm, lastWeight] = SIZE_ANCHORS[SIZE_ANCHORS.length - 1];
-  return lastWeight + (size - lastCm) * BEYOND_LAST_PER_CM;
+  return SIZE_FIXED + SIZE_RATE * (size ** SIZE_EXPONENT);
 }
 
 /** 1 at the reference size, so the studio's reference price means what it says. */
@@ -78,6 +94,7 @@ export function placementFactor(placement = '') {
   return best;
 }
 
+const round2 = (n) => Math.round(n * 100) / 100;
 const roundQuarter = (h) => Math.max(0.5, Math.round(h * 4) / 4);
 const roundTo5 = (cents) => Math.round(cents / 500) * 500;
 
@@ -108,15 +125,20 @@ export function estimate(brief, artist) {
   const minimum = Math.max(0, Number(artist.minimum_cents) || 0);
   const depositPercent = Math.min(100, Math.max(0, Number(artist.deposit_percent) ?? 30));
 
+  // Rounded before they are multiplied, not after. The client is shown these
+  // numbers and told they explain the price; if the shown figures multiply out to
+  // something else, the explanation is a decoration. A tenth of a percent is
+  // nothing to the studio and everything to whether the page can be trusted.
   const factors = [
     { key: 'size', label: `Taille ${Math.round(Number(brief.size_cm) || 0)} cm`, factor: sizeFactor(brief.size_cm) },
     { key: 'detail', label: DETAIL_LABEL[brief.detail_level] ?? 'Détail moyen', factor: DETAIL_FACTOR[brief.detail_level] ?? 1 },
     { key: 'color', label: COLOR_LABEL[brief.color_mode] ?? 'Noir plein', factor: COLOR_FACTOR[brief.color_mode] ?? 1 },
     { key: 'placement', label: brief.placement ? `Zone : ${brief.placement}` : 'Zone standard', factor: placementFactor(brief.placement) },
     { key: 'cover_up', label: 'Recouvrement', factor: brief.cover_up ? COVER_UP_FACTOR : 1 },
-  ];
+  ].map((item) => ({ ...item, factor: round2(item.factor) }));
 
   const combined = factors.reduce((total, item) => total * item.factor, 1);
+  const byKey = Object.fromEntries(factors.map((item) => [item.key, item.factor]));
   const midpoint = Math.max(minimum, Math.round(reference * combined));
   const flooredByMinimum = midpoint === minimum && Math.round(reference * combined) < minimum;
 
@@ -124,9 +146,8 @@ export function estimate(brief, artist) {
   // much work is in there" without pretending to know a duration.
   // Everything that makes the piece harder also makes it longer — including the
   // area: thin skin and breaks slow the work down as surely as fine detail does.
-  const weight = sizeWeight(brief.size_cm) * (DETAIL_FACTOR[brief.detail_level] ?? 1)
-    * (COLOR_FACTOR[brief.color_mode] ?? 1) * placementFactor(brief.placement)
-    * (brief.cover_up ? COVER_UP_FACTOR : 1);
+  const weight = sizeWeight(brief.size_cm)
+    * byKey.detail * byKey.color * byKey.placement * byKey.cover_up;
   const spread = spreadFor(weight);
   const low = Math.max(minimum, roundTo5(midpoint * (1 - spread)));
   const high = Math.max(low, roundTo5(midpoint * (1 + spread)));
@@ -138,9 +159,7 @@ export function estimate(brief, artist) {
   return {
     // What the price is made of — the client sees why, not just how much.
     reference_price_cents: reference,
-    factors: factors
-      .filter((item) => item.factor !== 1 || item.key === 'size')
-      .map((item) => ({ ...item, factor: Math.round(item.factor * 100) / 100 })),
+    factors: factors.filter((item) => item.factor !== 1 || item.key === 'size'),
     floored_by_minimum: flooredByMinimum,
 
     hours: roundQuarter(weight),

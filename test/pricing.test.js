@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { estimate, suggestDeposit, placementFactor, sizeFactor } from '../src/pricing.js';
+import { estimate, suggestDeposit, placementFactor, sizeFactor, sizeWeight, REFERENCE_SIZE_CM } from '../src/pricing.js';
 
 const artist = { reference_price_cents: 18000, minimum_cents: 8000, deposit_percent: 30 };
 
@@ -136,4 +136,69 @@ test('a studio configured before the change keeps its prices', () => {
   const legacy = { hourly_rate_cents: 12000, minimum_cents: 8000, deposit_percent: 30 };
   const result = estimate({ size_cm: 10, detail_level: 'medium', color_mode: 'blackwork' }, legacy);
   assert.equal(result.midpoint_cents, 18000);
+});
+
+/* ----------------------------------------- the curve, and what the client reads */
+
+test('the curve never accelerates as the piece grows', () => {
+  // The model itself, before any rounding: past the smallest sizes, one more
+  // centimetre may only ever cost a smaller share than the one before. A table of
+  // anchors joined by straight lines surged again at every anchor — 12.5 % at
+  // 5 cm, 20 % at 6 cm — which is what this forbids.
+  let previous = sizeWeight(4);
+  let previousJump = Infinity;
+  for (let cm = 5; cm <= 120; cm += 1) {
+    const weight = sizeWeight(cm);
+    const jump = (weight - previous) / previous;
+    assert.ok(jump > 0, `${cm} cm must weigh more than ${cm - 1} cm`);
+    assert.ok(jump <= previousJump,
+      `the curve accelerated at ${cm} cm (${(jump * 100).toFixed(2)} % after ${(previousJump * 100).toFixed(2)} %)`);
+    previousJump = jump;
+    previous = weight;
+  }
+});
+
+test('the price rises smoothly with the size, with no cliff anywhere', () => {
+  const artist = { reference_price_cents: 20000, minimum_cents: 0, deposit_percent: 30 };
+  const at = (cm) => estimate({ size_cm: cm, detail_level: 'medium', color_mode: 'blackwork' }, artist).midpoint_cents;
+
+  let previous = at(2);
+  for (let cm = 3; cm <= 80; cm += 1) {
+    const price = at(cm);
+    const jump = (price - previous) / previous;
+    assert.ok(jump > 0, `${cm} cm should cost more than ${cm - 1} cm`);
+    assert.ok(jump < 0.2, `one centimetre moved the price by ${Math.round(jump * 100)} % at ${cm} cm`);
+    previous = price;
+  }
+});
+
+test('the reference piece costs exactly the reference price', () => {
+  const artist = { reference_price_cents: 24000, minimum_cents: 0, deposit_percent: 30 };
+  const result = estimate({ size_cm: REFERENCE_SIZE_CM, detail_level: 'medium', color_mode: 'blackwork' }, artist);
+  assert.equal(result.midpoint_cents, 24000);
+  assert.equal(result.factors.find((f) => f.key === 'size').factor, 1);
+});
+
+test('the breakdown the client is shown multiplies out to the price they are quoted', () => {
+  const artist = { reference_price_cents: 21000, minimum_cents: 0, deposit_percent: 30 };
+  for (const brief of [
+    { size_cm: 25, detail_level: 'hyperrealism', color_mode: 'color', cover_up: true, placement: 'côtes' },
+    { size_cm: 7, detail_level: 'simple', color_mode: 'linework' },
+    { size_cm: 44, detail_level: 'high', color_mode: 'blackgrey', placement: 'main' },
+    { size_cm: 3, detail_level: 'medium', color_mode: 'blackwork' },
+  ]) {
+    const result = estimate(brief, artist);
+    const rebuilt = result.factors.reduce((total, item) => total * item.factor, result.reference_price_cents);
+    assert.equal(Math.round(rebuilt), result.midpoint_cents,
+      `${JSON.stringify(brief)} : le détail affiché donne ${Math.round(rebuilt)} pour un prix annoncé de ${result.midpoint_cents}`);
+  }
+});
+
+test('hours and price agree on how much work is in there', () => {
+  const artist = { reference_price_cents: 20000, minimum_cents: 0, deposit_percent: 30 };
+  const simple = estimate({ size_cm: 20, detail_level: 'simple', color_mode: 'linework' }, artist);
+  const hard = estimate({ size_cm: 20, detail_level: 'hyperrealism', color_mode: 'color', cover_up: true }, artist);
+  assert.ok(hard.midpoint_cents > simple.midpoint_cents);
+  assert.ok(hard.hours > simple.hours, 'what costs more also takes longer');
+  assert.ok(hard.sessions >= simple.sessions);
 });
