@@ -1,14 +1,33 @@
-import { api, toast, money, hours as formatHours, esc, DETAIL_LABELS, COLOR_LABELS, setStudioZone } from './util.js';
+import { api, toast, money, hours as formatHours, dateTime, esc, DETAIL_LABELS, COLOR_LABELS, setStudioZone } from './util.js';
 
 const slug = decodeURIComponent(location.pathname.split('/').filter(Boolean)[1] ?? '');
 const el = (id) => document.getElementById(id);
 let artist = null;
 let currency = 'EUR';
 
-const AVAILABILITY = [
-  'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi',
-  'matin', 'après-midi', 'soirée', 'je suis flexible',
-];
+const DAY_NAMES = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+
+/**
+ * The days offered are the studio's own.
+ *
+ * This used to be a fixed list of weekdays, so a client could tick "lundi" at a
+ * studio closed on Mondays — and the artist got a brief whose stated availability
+ * was impossible before it was even read. The studio already publishes its week;
+ * the form asks against it.
+ */
+function availabilityChoices(workingHours) {
+  const open = (workingHours ?? []).map((day, index) => ({ ...day, index })).filter((day) => day.open);
+  if (!open.length) return ['je suis flexible'];
+  const choices = [];
+  for (const day of open) {
+    const from = Number(String(day.from).slice(0, 2));
+    const to = Number(String(day.to).slice(0, 2));
+    if (from < 13) choices.push(`${DAY_NAMES[day.index]} matin`);
+    if (to > 13) choices.push(`${DAY_NAMES[day.index]} après-midi`);
+  }
+  choices.push('je suis flexible');
+  return choices;
+}
 
 init();
 
@@ -51,8 +70,39 @@ function renderArtist(options) {
     .map((v) => `<option value="${v}"${v === 'blackwork' ? ' selected' : ''}>${esc(COLOR_LABELS[v] ?? v)}</option>`).join('');
   el('detail_level').innerHTML = options.detail_levels
     .map((v) => `<option value="${v}"${v === 'medium' ? ' selected' : ''}>${esc(DETAIL_LABELS[v] ?? v)}</option>`).join('');
-  el('availability').innerHTML = AVAILABILITY
+  el('availability').innerHTML = availabilityChoices(artist.working_hours)
     .map((day) => `<label class="chip"><input type="checkbox" value="${esc(day)}">${esc(day)}</label>`).join('');
+  renderOpeningHours();
+}
+
+/** The studio's week, written out, so nobody has to guess which days exist. */
+function renderOpeningHours() {
+  const week = artist.working_hours ?? [];
+  const open = week.map((day, index) => ({ ...day, index })).filter((day) => day.open);
+  const host = el('opening-hours');
+  if (!host) return;
+  host.textContent = open.length
+    ? `Ouvert ${open.map((day) => `${DAY_NAMES[day.index]} ${day.from}–${day.to}`).join(', ')}.`
+    : '';
+}
+
+/**
+ * The next few slots a piece this size would actually fit into. Not a booking
+ * grid — the artist still chooses — but "roughly when" beats a client picking a
+ * date out of the air and being told no.
+ */
+async function refreshSlots(durationHours) {
+  const host = el('next-slots');
+  if (!host) return;
+  try {
+    const { slots } = await api('GET',
+      `/api/public/artists/${encodeURIComponent(slug)}/slots?hours=${encodeURIComponent(durationHours)}`);
+    host.textContent = slots.length
+      ? `Prochaines disponibilités pour ${durationHours} h : ${slots.map((slot) => dateTime(slot.starts_at)).join(' · ')}.`
+      : 'Aucun créneau libre dans les quatre prochaines semaines — le studio vous proposera une date.';
+  } catch {
+    host.textContent = ''; // a missing hint must never block the form
+  }
 }
 
 function wireForm() {
@@ -98,6 +148,9 @@ async function runEstimate() {
     el('estimate-deposit').textContent = money(estimate.deposit_cents, currency);
     renderFactors(estimate);
     pulseEstimate();
+    // The first session, not the whole project: a nine-hour piece is booked in
+    // instalments, and asking for a nine-hour slot finds nothing.
+    refreshSlots(Math.min(estimate.hours, 6));
 
     const warning = el('budget-warning');
     if (!estimate.budget_realistic) {

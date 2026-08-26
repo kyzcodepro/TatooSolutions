@@ -1,6 +1,6 @@
 // Opening hours are wall-clock local, storage is UTC, and the two disagree twice
 // a year. That is the part worth pinning down.
-import { test } from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   availableSlots, offsetAt, zonedToUtc, zonedParts, withinWorkingHours,
@@ -91,4 +91,37 @@ test('malformed opening hours fall back instead of throwing', () => {
     Array.from({ length: 7 }, () => ({ open: true, from: '25:00', to: 'nope' })),
   ));
   assert.equal(patched[0].from, '11:00', 'an impossible time falls back to the default');
+});
+
+/* ------------------------------------- what the booking page is allowed to say */
+
+test('the public slots endpoint only ever offers open days', async (t) => {
+  const { client, shutdown } = await import('./helpers.js');
+  after(shutdown); // the helper starts a server on import; give it back at the end
+  const { zonedParts } = await import('../src/availability.js');
+  const call = client();
+  const n = Math.random().toString(36).slice(2, 8);
+  await call('POST', '/api/auth/signup', {
+    email: `slots-${n}@studio.example`, password: 'motdepasse123', studio_name: `Créneaux ${n}`,
+  });
+  const shut = { open: false, from: '11:00', to: '19:00' };
+  await call('PATCH', '/api/me', {
+    timezone: 'Europe/Paris',
+    // Tuesday mornings and Saturdays, nothing else.
+    working_hours: [shut, shut, { open: true, from: '09:00', to: '12:00' }, shut, shut, shut,
+      { open: true, from: '11:00', to: '19:00' }],
+  });
+  const slug = (await call('GET', '/api/me')).data.artist.slug;
+
+  const { slots, timezone } = (await client()('GET', `/api/public/artists/${slug}/slots?hours=2`)).data;
+  assert.equal(timezone, 'Europe/Paris', 'the page is told which clock these are on');
+  assert.ok(slots.length, 'an open studio offers something');
+  for (const slot of slots) {
+    const parts = zonedParts(new Date(slot.starts_at).getTime(), timezone);
+    assert.ok([2, 6].includes(parts.weekday),
+      `a slot fell on weekday ${parts.weekday}, which the studio is closed`);
+    if (parts.weekday === 2) {
+      assert.ok(parts.hours >= 9 && parts.hours <= 10, `Tuesday slot at ${parts.hours}h is outside 09:00–12:00`);
+    }
+  }
 });
