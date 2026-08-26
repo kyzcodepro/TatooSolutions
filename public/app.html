@@ -16,7 +16,7 @@
   .refs a { color: var(--muted); font-size: 0.83rem; }
   .outbox-item { border-bottom: 1px solid var(--line); padding: 0.75rem 0; }
   .outbox-item:last-child { border-bottom: 0; }
-  .outbox-body { white-space: pre-wrap; color: var(--muted); font-size: 0.86rem; margin-top: 0.35rem; }
+  .outbox-body { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); font-size: 0.86rem; margin-top: 0.35rem; }
 </style>
 </head>
 <body>
@@ -53,6 +53,8 @@
     <button class="tab" role="tab" data-panel="settings" aria-selected="false">Réglages</button>
   </div>
 
+  <p class="muted hidden" id="agenda-zone" style="font-size:0.85rem;margin:0 0 1rem"></p>
+
   <section id="panel-inbox">
     <div class="filters" id="filters"></div>
     <div id="requests"></div>
@@ -62,7 +64,6 @@
     <div class="grid" style="grid-template-columns:minmax(0,1.5fr) minmax(260px,0.5fr)">
       <div>
         <h3>Séances à venir</h3>
-        <p class="muted hidden" id="agenda-zone" style="font-size:0.85rem;margin:0.3rem 0 0"></p>
         <div id="appointments" style="margin-top:0.8rem"></div>
         <h3 style="margin-top:2rem">Historique</h3>
         <div id="appointments-past" style="margin-top:0.8rem"></div>

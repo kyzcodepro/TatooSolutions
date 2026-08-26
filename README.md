@@ -70,8 +70,9 @@ trop ancienne l'application le dit explicitement au démarrage au lieu de plante
 
 ## Parcours
 
-1. **L'artiste** crée son studio, règle son taux horaire, son minimum, son pourcentage d'acompte
-   et son délai d'annulation, puis met son lien `/b/<studio>` en bio.
+1. **L'artiste** crée son studio, règle son prix de référence, son minimum, son pourcentage
+   d'acompte, ses horaires d'ouverture et son délai d'annulation, puis met son lien
+   `/b/<studio>` en bio.
 2. **Le client** décrit son projet. La fourchette de prix et l'acompte se mettent à jour en direct
    pendant qu'il remplit le formulaire ; un budget irréaliste est signalé avant l'envoi.
 3. **L'artiste** voit le brief complet dans sa boîte (estimation, budget, références, disponibilités)

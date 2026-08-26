@@ -61,12 +61,16 @@ small { font-size: 0.82rem; }
   border-bottom: 1px solid var(--line);
 }
 .topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 1rem; height: 62px; }
+.topbar .brand { flex: 0 0 auto; }
 .brand { display: flex; align-items: center; gap: 0.55rem; font-weight: 700; letter-spacing: -0.03em; font-size: 1.12rem; text-decoration: none; }
 .brand-mark {
   width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
   background: linear-gradient(140deg, var(--accent), #b02d5f); color: #fff; font-size: 0.8rem; font-weight: 800;
 }
-.nav { display: flex; gap: 0.35rem; align-items: center; }
+.nav { display: flex; gap: 0.35rem; align-items: center; min-width: 0; }
+/* Whatever the bar names — an address, a studio — it truncates rather than
+   pushing the page sideways. */
+.nav > .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .nav a { color: var(--muted); text-decoration: none; padding: 0.4rem 0.7rem; border-radius: var(--radius-sm); font-size: 0.92rem; }
 .nav a:hover { color: var(--text); background: var(--bg-elevated); }
 
@@ -215,6 +219,15 @@ fieldset { border: 0; padding: 0; margin: 0; }
   .card { padding: 1rem; }
   .topbar .wrap { height: 56px; }
   .nav a { padding: 0.35rem 0.5rem; }
+  /* An email address is longer than a phone is wide. The account it names is
+     already implied by the fact that you are logged in, so on a small screen the
+     bar keeps the way out and drops the label. */
+  .topbar .nav > .muted { display: none; }
+  /* minmax(180px, 1fr) still asks for 360px of columns plus the gap, which a 390px
+     screen does not have once the card is padded. */
+  .field-row { grid-template-columns: 1fr; }
+  .hours-row { grid-template-columns: 92px minmax(0, 1fr) minmax(0, 1fr); gap: 0.45rem; }
+  .hours-row input[type="time"] { padding-inline: 0.4rem; }
 }
 
 /* ============================================================================
@@ -422,7 +435,9 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .outbox-item .outbox-body { line-height: 1.6; }
 
 /* Semaine d'ouverture : sept lignes qu'on lit d'un coup d'œil. */
-.hours-row { display: grid; grid-template-columns: 130px 1fr 1fr; gap: 0.7rem; align-items: center; }
+/* minmax(0, …) rather than 1fr: a time input's intrinsic width is wider than the
+   track it is given, and a plain 1fr refuses to shrink below it. */
+.hours-row { display: grid; grid-template-columns: 130px minmax(0, 1fr) minmax(0, 1fr); gap: 0.7rem; align-items: center; }
 .hours-row + .hours-row { margin-top: 0.5rem; }
 .hours-row input[type="time"] { min-height: 40px; }
 .hours-row .check { margin: 0; }
