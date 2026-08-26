@@ -1,6 +1,6 @@
 import {
   api, toast, money, euros, dateTime, relative, percent, hours as formatHours, esc,
-  statusBadge, toIso, toLocalInput, COLOR_LABELS, DETAIL_LABELS, setStudioZone, zoneNote,
+  statusBadge, toIso, toLocalInput, COLOR_LABELS, DETAIL_LABELS, setStudioZone, zonePlace,
 } from './util.js';
 
 const el = (id) => document.getElementById(id);
@@ -67,7 +67,9 @@ function renderHeader() {
   // Said out loud only when the artist is reading from another zone — on tour, or
   // travelling. Every hour on this screen is the studio's, and silently showing
   // one clock while the artist reads another is how a session gets missed.
-  const note = zoneNote(artist.city);
+  // No offset here: this banner covers a whole agenda, and a list that spans a
+  // clock change has two of them. The place is what stays true.
+  const note = zonePlace(artist.city);
   const banner = el('agenda-zone');
   banner.textContent = note ? `Toutes les heures sont données en ${note}.` : '';
   banner.classList.toggle('hidden', !note);

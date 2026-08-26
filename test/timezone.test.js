@@ -116,3 +116,28 @@ test('the public booking page is told the zone its opening hours are in', async 
   assert.equal(page.data.artist.timezone, 'America/Montreal');
   assert.equal(page.data.artist.working_hours.length, 7);
 });
+
+test('the offset named is the one in force on the day, not today', () => {
+  // Booked in August, for December: Montréal is UTC-4 in one and UTC-5 in the other.
+  const summer = Date.UTC(2026, 7, 26);
+  const winter = Date.UTC(2026, 11, 27);
+  assert.equal(zoneLabel('America/Montreal', summer), 'UTC-4');
+  assert.equal(zoneLabel('America/Montreal', winter), 'UTC-5');
+  // The southern hemisphere runs the other way round, which is the real test.
+  assert.equal(zoneLabel('Australia/Sydney', summer), 'UTC+10');
+  assert.equal(zoneLabel('Australia/Sydney', winter), 'UTC+11');
+});
+
+test('a quote for the far side of a clock change names the right offset', async () => {
+  const { artist } = await montrealStudio();
+  const start = '2026-12-27T16:00:00.000Z'; // 11:00 in Montréal, UTC-5 that day
+  const request = (await artist('GET', '/api/requests?status=new')).data.requests[0];
+  await artist('POST', `/api/requests/${request.id}/quote`, {
+    outside_hours: true, price_cents: 30000, proposed_start: start, duration_hours: 2,
+  });
+
+  const db = await getDb();
+  const message = await db.get("SELECT * FROM messages WHERE request_id = ? AND kind = 'quote_sent'", [request.id]);
+  assert.match(message.body, /11:00/);
+  assert.match(message.body, /UTC-5/, 'not the UTC-4 in force the day the quote was written');
+});

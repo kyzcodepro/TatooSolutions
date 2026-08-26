@@ -117,7 +117,10 @@ const dateFr = (iso, artist) => formatDateTime(iso, artist?.timezone);
 
 // Spelled out wherever the client has to be somewhere at that hour: they may well
 // be reading this from another country.
-const localZone = (artist) => `heure de ${artist?.city || 'l\'atelier'}, ${zoneLabel(artist?.timezone)}`;
+// The offset has to be read at the instant being described, not at the instant the
+// email is written: a session booked in August for December is UTC-5 in Montréal,
+// not the UTC-4 in force the day the quote goes out.
+const localZone = (artist, iso) => `heure de ${artist?.city || 'l\'atelier'}, ${zoneLabel(artist?.timezone, new Date(iso).getTime())}`;
 
 export async function queueRequestReceived(artist, request, estimateResult) {
   await queueMessage({
@@ -150,7 +153,7 @@ export async function queueQuoteSent(artist, request) {
       `Bonjour ${request.client_name},`,
       '',
       `Voici votre devis : ${formatMoney(request.quote_price_cents, artist.currency)}`,
-      request.proposed_start ? `Créneau proposé : ${dateFr(request.proposed_start, artist)} (${localZone(artist)})` : 'Créneau à définir ensemble.',
+      request.proposed_start ? `Créneau proposé : ${dateFr(request.proposed_start, artist)} (${localZone(artist, request.proposed_start)})` : 'Créneau à définir ensemble.',
       `Acompte pour bloquer la date : ${formatMoney(request.deposit_cents, artist.currency)}`,
       request.artist_note ? `\nNote de l'artiste : ${request.artist_note}` : '',
       '',
@@ -172,7 +175,7 @@ export async function queueBookingConfirmed(artist, request, appointment) {
       `Bonjour ${request.client_name},`,
       '',
       `Votre acompte de ${formatMoney(appointment.deposit_cents, artist.currency)} est enregistré, votre séance est bloquée.`,
-      `Rendez-vous : ${dateFr(appointment.starts_at, artist)} (${localZone(artist)}) chez ${artist.studio_name}${artist.city ? `, ${artist.city}` : ''}.`,
+      `Rendez-vous : ${dateFr(appointment.starts_at, artist)} (${localZone(artist, appointment.starts_at)}) chez ${artist.studio_name}${artist.city ? `, ${artist.city}` : ''}.`,
       `Reste à régler sur place : ${formatMoney(appointment.price_cents - appointment.deposit_cents, artist.currency)}`,
       '',
       'Avant la séance : mangez, dormez, pas d\'alcool 24 h avant, apportez une pièce d\'identité.',

@@ -67,11 +67,21 @@ export function zoneDiffers() {
   return Boolean(studioZone) && studioZone !== browserZone();
 }
 
-/** "heure de Paris (UTC+2)", for when it differs. */
-export function zoneNote(city = '') {
+/**
+ * "heure de Paris (UTC+2)", for when it differs.
+ *
+ * Pass the instant being described: an offset read today is the wrong one for a
+ * session on the far side of a clock change.
+ */
+export function zonePlace(city = '') {
+  if (!zoneDiffers()) return '';
+  return `heure de ${city || studioZone.split('/').pop().replace(/_/g, ' ')}`;
+}
+
+export function zoneNote(city = '', at = new Date()) {
   if (!zoneDiffers()) return '';
   const parts = new Intl.DateTimeFormat('fr-FR', { timeZone: studioZone, timeZoneName: 'shortOffset' })
-    .formatToParts(new Date());
+    .formatToParts(new Date(at));
   const offset = parts.find((part) => part.type === 'timeZoneName')?.value ?? studioZone;
   return `heure de ${city || studioZone.split('/').pop().replace(/_/g, ' ')} (${offset})`;
 }

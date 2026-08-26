@@ -424,7 +424,7 @@ export async function rescheduleAppointment(artist, appointmentId, startsAt, dur
     artistId: artist.id, requestId: request.id, appointmentId: updated.id,
     kind: 'rescheduled', recipient: request.client_email,
     subject: 'Votre séance a été déplacée',
-    body: `Bonjour ${request.client_name},\n\nNouvelle date : ${formatDateTime(updated.starts_at, artist.timezone)} (${zoneLabel(artist.timezone)}). Votre acompte reste acquis à cette séance.`,
+    body: `Bonjour ${request.client_name},\n\nNouvelle date : ${formatDateTime(updated.starts_at, artist.timezone)} (${zoneLabel(artist.timezone, new Date(updated.starts_at).getTime())}). Votre acompte reste acquis à cette séance.`,
   });
   return updated;
 }
