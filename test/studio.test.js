@@ -278,3 +278,84 @@ test('an artist without a studio gets one instead of a broken dashboard', async 
   assert.equal(view.members.length, 1);
   assert.equal(await ensureStudio(fresh), studioId, 'and not founded twice');
 });
+
+/* ------------------------------------------------------- statistics per artist */
+
+const inDays = (days, hour = 12) => {
+  const date = new Date(Date.now() + days * 86400000);
+  date.setUTCHours(hour, 0, 0, 0);
+  return date.toISOString();
+};
+
+/** Two artists under one roof, one of them with a paid session on the books. */
+async function studioWithOneBooking() {
+  const owner = await newOwner('Atelier Chiffres');
+  const token = await inviteToken(owner.call, `member${seq}@studio.example`);
+  const member = client();
+  await member('POST', '/api/auth/signup', {
+    email: `member${seq}@studio.example`, password: 'motdepasse123',
+    studio_name: `Membre ${seq}`, invite: token,
+  });
+
+  const slug = owner.artist.slug;
+  const visitor = client();
+  const created = await visitor('POST', `/api/public/artists/${slug}/requests`, {
+    client_name: 'Yann Le Goff', client_email: 'yann@example.com',
+    description: "Poulpe sur l'épaule, blackwork dense, une séance.",
+    size_cm: 20, color_mode: 'blackwork', detail_level: 'high', is_adult: true,
+  });
+  const publicToken = created.data.request.public_token;
+  const request = (await owner.call('GET', '/api/requests?status=new')).data.requests
+    .find((row) => row.public_token === publicToken);
+  await owner.call('POST', `/api/requests/${request.id}/quote`, {
+    outside_hours: true, price_cents: 60000, proposed_start: inDays(9), duration_hours: 4,
+  });
+  await visitor('POST', `/api/public/quotes/${publicToken}/accept`);
+  return { owner: owner.call, member };
+}
+
+test('the studio board counts each artist separately', async () => {
+  const { owner } = await studioWithOneBooking();
+
+  const board = (await owner('GET', '/api/studio/stats')).data;
+  assert.equal(board.artists.length, 2);
+  assert.equal(board.money_visible, true);
+
+  const ownerRow = board.artists.find((row) => row.you);
+  const memberRow = board.artists.find((row) => !row.you);
+  assert.equal(ownerRow.requests, 1);
+  assert.equal(ownerRow.upcoming, 1);
+  assert.equal(ownerRow.conversion_rate, 1);
+  assert.equal(ownerRow.upcoming_hours, 4);
+  assert.equal(memberRow.requests, 0, "a colleague's inbox is not mixed into yours");
+  assert.equal(memberRow.upcoming, 0);
+  assert.equal(board.totals.upcoming, 1);
+  assert.ok(board.totals.deposits_held_cents > 0, 'the studio sees its own held deposits');
+});
+
+test('volume is shared with the studio, takings are not', async () => {
+  const { member } = await studioWithOneBooking();
+
+  const board = (await member('GET', '/api/studio/stats')).data;
+  assert.equal(board.money_visible, false);
+
+  const colleague = board.artists.find((row) => !row.you);
+  assert.equal(colleague.upcoming, 1, 'volume is shared, like the diary');
+  assert.equal(colleague.revenue_cents, undefined, 'takings are not');
+  assert.equal(colleague.deposits_held_cents, undefined);
+
+  const own = board.artists.find((row) => row.you);
+  assert.equal(own.revenue_cents, 0, 'you always see your own row in full');
+});
+
+test('the board window is configurable and validated', async () => {
+  const { call } = await newOwner('Fenêtre');
+  assert.equal((await call('GET', '/api/studio/stats?days=30')).data.window_days, 30);
+  assert.equal((await call('GET', '/api/studio/stats')).data.window_days, 90);
+  assert.equal((await call('GET', '/api/studio/stats?days=0')).status, 400);
+  assert.equal((await call('GET', '/api/studio/stats?days=nope')).status, 400);
+});
+
+test('the board is behind a session', async () => {
+  assert.equal((await client()('GET', '/api/studio/stats')).status, 401);
+});

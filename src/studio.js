@@ -225,6 +225,127 @@ export async function studioAgenda(studioId, { from = null, to = null } = {}) {
   `, params);
 }
 
+/**
+ * The board every member sees: who is filling their week, and who is not.
+ *
+ * Volume is shared, because the diary already is — a studio that cannot see its
+ * own load cannot plan a week. Money per artist is the owner's view only, plus
+ * each artist's own row: the owner pays the bill, and nobody else needs to read
+ * a colleague's takings.
+ */
+export async function studioStats(viewer, { days = 90 } = {}) {
+  const db = await getDb();
+  const studioId = await ensureStudio(viewer);
+  const studio = await getStudio(studioId);
+  const members = await listMembers(studioId);
+  const ids = members.map((member) => member.id);
+  if (!ids.length) return { studio, window_days: days, artists: [], totals: emptyTotals() };
+
+  const holes = ids.map(() => '?').join(',');
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  const now = nowIso();
+
+  const requestRows = await db.all(
+    `SELECT artist_id, status, COUNT(*) AS count FROM requests
+     WHERE artist_id IN (${holes}) AND created_at >= ? GROUP BY artist_id, status`,
+    [...ids, since],
+  );
+  const sessionRows = await db.all(
+    `SELECT artist_id, status, COUNT(*) AS count,
+            COALESCE(SUM(price_cents), 0) AS revenue,
+            COALESCE(SUM(deposit_cents), 0) AS deposits
+     FROM appointments WHERE artist_id IN (${holes}) AND starts_at >= ? GROUP BY artist_id, status`,
+    [...ids, since],
+  );
+  const upcomingRows = await db.all(
+    `SELECT artist_id, COUNT(*) AS count,
+            COALESCE(SUM(price_cents), 0) AS revenue,
+            COALESCE(SUM(deposit_cents), 0) AS deposits,
+            COALESCE(SUM((julianday(ends_at) - julianday(starts_at)) * 24), 0) AS hours
+     FROM appointments WHERE artist_id IN (${holes}) AND status = 'scheduled' AND starts_at >= ?
+     GROUP BY artist_id`,
+    [...ids, now],
+  );
+
+  const index = (rows) => {
+    const out = new Map();
+    for (const row of rows) {
+      if (!out.has(row.artist_id)) out.set(row.artist_id, {});
+      out.get(row.artist_id)[row.status] = row;
+    }
+    return out;
+  };
+  const byRequest = index(requestRows);
+  const bySession = index(sessionRows);
+  const byUpcoming = new Map(upcomingRows.map((row) => [row.artist_id, row]));
+
+  const owner = isOwner(viewer);
+  const totals = emptyTotals();
+  const artists = members.map((member) => {
+    const requests = byRequest.get(member.id) ?? {};
+    const sessions = bySession.get(member.id) ?? {};
+    const upcoming = byUpcoming.get(member.id) ?? { count: 0, revenue: 0, deposits: 0, hours: 0 };
+
+    const requestCount = (status) => requests[status]?.count ?? 0;
+    const sessionCount = (status) => sessions[status]?.count ?? 0;
+    const totalRequests = Object.values(requests).reduce((sum, row) => sum + row.count, 0);
+    const converted = CONVERTED_REQUEST_STATUSES.reduce((sum, status) => sum + requestCount(status), 0);
+    const finished = sessionCount('completed') + sessionCount('no_show');
+
+    const row = {
+      artist_id: member.id,
+      name: member.studio_name,
+      slug: member.slug,
+      role: member.role,
+      you: member.id === viewer.id,
+      accepting_requests: !!member.accepting_requests,
+      requests: totalRequests,
+      pending: requestCount('new'),
+      quoted: requestCount('quoted'),
+      conversion_rate: totalRequests ? converted / totalRequests : 0,
+      completed: sessionCount('completed'),
+      no_shows: sessionCount('no_show'),
+      cancelled: sessionCount('cancelled'),
+      no_show_rate: finished ? sessionCount('no_show') / finished : 0,
+      upcoming: upcoming.count,
+      upcoming_hours: Math.round((upcoming.hours ?? 0) * 10) / 10,
+    };
+
+    // Totals stay whole even when a row is redacted: the studio's own figure is
+    // not a colleague's takings, and the owner sees it on the bill anyway.
+    totals.requests += totalRequests;
+    totals.completed += row.completed;
+    totals.no_shows += row.no_shows;
+    totals.upcoming += row.upcoming;
+    totals.upcoming_hours += row.upcoming_hours;
+    totals.revenue_cents += sessions.completed?.revenue ?? 0;
+    totals.deposits_held_cents += upcoming.deposits ?? 0;
+
+    if (owner || row.you) {
+      row.revenue_cents = sessions.completed?.revenue ?? 0;
+      row.deposits_held_cents = upcoming.deposits ?? 0;
+      row.deposits_kept_cents = sessions.no_show?.deposits ?? 0;
+    }
+    return row;
+  });
+
+  totals.upcoming_hours = Math.round(totals.upcoming_hours * 10) / 10;
+  return {
+    studio: { id: studio.id, name: studio.name, slug: studio.slug },
+    window_days: days,
+    money_visible: owner,
+    artists,
+    totals,
+  };
+}
+
+const CONVERTED_REQUEST_STATUSES = ['booked', 'completed', 'cancelled', 'no_show'];
+
+const emptyTotals = () => ({
+  requests: 0, completed: 0, no_shows: 0, upcoming: 0, upcoming_hours: 0,
+  revenue_cents: 0, deposits_held_cents: 0,
+});
+
 /** The studio's public face: its artists and where to book each of them. */
 export async function publicStudio(slug) {
   const studio = await getStudioBySlug(slug);

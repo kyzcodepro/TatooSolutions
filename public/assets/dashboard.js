@@ -481,6 +481,56 @@ function outboxState(message) {
 
 let studioState = null;
 
+/**
+ * Who is filling their week, and who is not. Volume is shared with the whole
+ * studio — the diary already is — while takings show only on the owner's screen
+ * and on each artist's own row.
+ */
+async function loadStudioStats() {
+  const board = await api('GET', '/api/studio/stats');
+  el('studio-stats-note').textContent = `Sur les ${board.window_days} derniers jours.`
+    + (board.money_visible ? '' : ' Les montants des autres artistes ne vous sont pas montrés.');
+
+  const busiest = Math.max(1, ...board.artists.map((row) => row.upcoming_hours));
+  el('studio-stats').innerHTML = board.artists.map((row) => {
+    const money_ = (cents) => money(cents, artist.currency);
+    return `
+    <article class="item">
+      <div class="row-between">
+        <div>
+          <div class="item-title">${esc(row.name)}${row.you ? ' <span class="badge">vous</span>' : ''}${row.accepting_requests ? '' : ' <span class="badge">fermé</span>'}</div>
+          <div class="meta">
+            <span>Demandes : <b>${row.requests}</b></span>
+            <span>Conversion : <b>${percent(row.conversion_rate)}</b></span>
+            <span>Séances faites : <b>${row.completed}</b></span>
+            <span${row.no_show_rate > 0.1 ? ' style="color:var(--danger)"' : ''}>No-show : <b>${percent(row.no_show_rate)}</b>${row.no_shows ? ` (${row.no_shows})` : ''}</span>
+            ${row.revenue_cents === undefined ? '' : `<span>CA : <b>${money_(row.revenue_cents)}</b></span>`}
+            ${row.deposits_held_cents === undefined ? '' : `<span>Acomptes détenus : <b>${money_(row.deposits_held_cents)}</b></span>`}
+          </div>
+          <div class="bar" style="margin-top:.6rem" title="${row.upcoming_hours} h à venir">
+            <div class="bar-accent" style="height:100%;border-radius:4px;width:${Math.round((row.upcoming_hours / busiest) * 100)}%"></div>
+          </div>
+          <div class="faint" style="font-size:.8rem;margin-top:.3rem">${row.upcoming} séance(s) à venir · ${row.upcoming_hours} h réservées${row.pending ? ` · ${row.pending} demande(s) sans réponse` : ''}</div>
+        </div>
+      </div>
+    </article>`;
+  }).join('') || '<div class="empty">Aucun artiste dans ce studio.</div>';
+
+  const totals = board.totals;
+  el('studio-stats').insertAdjacentHTML('beforeend', `
+    <article class="item" style="background:var(--bg-elevated)">
+      <div class="item-title">Tout le studio</div>
+      <div class="meta">
+        <span>Demandes : <b>${totals.requests}</b></span>
+        <span>Séances faites : <b>${totals.completed}</b></span>
+        <span>No-show : <b>${totals.no_shows}</b></span>
+        <span>À venir : <b>${totals.upcoming}</b> (${totals.upcoming_hours} h)</span>
+        <span>CA : <b>${money(totals.revenue_cents, artist.currency)}</b></span>
+        <span>Acomptes détenus : <b>${money(totals.deposits_held_cents, artist.currency)}</b></span>
+      </div>
+    </article>`);
+}
+
 async function loadStudio() {
   studioState = await api('GET', '/api/studio');
   const { studio, members, pending_invites: invites, seats, is_owner: isOwner } = studioState;
@@ -511,6 +561,8 @@ async function loadStudio() {
   el('members').querySelectorAll('[data-remove]').forEach((button) => {
     button.addEventListener('click', () => removeMember(Number(button.dataset.remove)));
   });
+
+  await loadStudioStats();
 
   el('studio-side').innerHTML = isOwner ? `
     <div class="card">

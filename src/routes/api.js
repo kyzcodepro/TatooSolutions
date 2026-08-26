@@ -412,6 +412,14 @@ api.get('/api/studio/agenda', async (req, res, { url }) => {
   });
 });
 
+api.get('/api/studio/stats', async (req, res, { url }) => {
+  const artist = await requireArtist(req);
+  const days = url.searchParams.get('days');
+  json(res, 200, await studio.studioStats(artist, {
+    days: days ? v.int(days, 'days', { min: 1, max: 730 }) : 90,
+  }));
+});
+
 api.get('/api/public/studios/:slug', async (req, res, { params }) => {
   json(res, 200, await studio.publicStudio(params.slug));
 });
