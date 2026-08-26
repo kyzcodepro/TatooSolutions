@@ -95,16 +95,18 @@ function render() {
     const remaining = request.quote_price_cents - request.deposit_cents;
     const sessionHours = request.proposed_start && request.proposed_end
       ? (new Date(request.proposed_end) - new Date(request.proposed_start)) / 3600000
-      : request.estimated_hours;
+      : request.estimated_session_hours || request.estimated_hours;
     // A long piece is booked one session at a time: say so instead of showing a 9 h slot.
-    const multiSession = request.estimated_hours > sessionHours + 0.01;
+    // Compared against chair time, since that is what the booked slot measures.
+    const totalHours = request.estimated_chair_hours || request.estimated_hours;
+    const multiSession = totalHours > sessionHours + 0.01;
     panel.innerHTML = `
       <div class="card card-pad-lg">
         ${request.artist_note ? `<p class="muted" style="border-left:2px solid var(--accent);padding-left:0.8rem">${esc(request.artist_note)}</p>` : ''}
         <div class="price-line"><span class="muted">Créneau proposé</span><b>${request.proposed_start ? esc(dateTime(request.proposed_start)) : 'à définir'}</b></div>
         ${request.proposed_start && zoneNote(artist.city, request.proposed_start) ? `<p class="hint center">Horaire donné en ${esc(zoneNote(artist.city, request.proposed_start))}.</p>` : ''}
         <div class="price-line"><span class="muted">${multiSession ? 'Première séance' : 'Durée prévue'}</span><b>${esc(sessionHours)} h</b></div>
-        ${multiSession ? `<div class="price-line"><span class="muted">Travail total estimé</span><b>${esc(request.estimated_hours)} h — séances suivantes à caler ensemble</b></div>` : ''}
+        ${multiSession ? `<div class="price-line"><span class="muted">Temps total sur place</span><b>${esc(totalHours)} h — séances suivantes à caler ensemble</b></div>` : ''}
         <div class="price-line"><span class="muted">Prix du tatouage</span><span class="price-total">${money(request.quote_price_cents, currency)}</span></div>
         <div class="price-line"><span class="muted">Acompte à verser maintenant</span><b style="color:var(--accent)">${money(request.deposit_cents, currency)}</b></div>
         <div class="price-line"><span class="muted">Reste à régler le jour J</span><b>${money(remaining, currency)}</b></div>

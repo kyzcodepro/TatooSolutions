@@ -138,6 +138,11 @@ const MIGRATIONS = [
   ['artists', 'lead_hours', 'INTEGER NOT NULL DEFAULT 48'],
   ['artists', 'studio_id', 'INTEGER'],
   ['artists', 'role', "TEXT NOT NULL DEFAULT 'owner'"],
+  // estimated_hours holds the needle time for the whole project. These two carry
+  // what the client actually blocks out and what the first appointment should be,
+  // which the old single number silently conflated.
+  ['requests', 'estimated_chair_hours', 'REAL NOT NULL DEFAULT 0'],
+  ['requests', 'estimated_session_hours', 'REAL NOT NULL DEFAULT 0'],
 ];
 
 // Idempotent by construction: each only touches rows not yet converted.
@@ -146,6 +151,14 @@ const BACKFILLS = [
   // hourly rate used to charge for it, so nobody's prices change under them.
   `UPDATE artists SET reference_price_cents = CAST(ROUND(hourly_rate_cents * 1.5) AS INTEGER)
      WHERE reference_price_cents IS NULL OR reference_price_cents <= 0`,
+  // Requests taken before duration had its own model: the old figure was needle
+  // time only, so the chair time is that plus one session's setup, and the first
+  // appointment is the smaller of the whole thing and a full sitting. Rough, but
+  // it beats a zero, and every new request is measured properly.
+  `UPDATE requests SET estimated_chair_hours = ROUND(estimated_hours + 0.75, 2)
+     WHERE estimated_chair_hours <= 0`,
+  `UPDATE requests SET estimated_session_hours = MIN(estimated_chair_hours, 6)
+     WHERE estimated_session_hours <= 0`,
 ];
 
 let db = null;

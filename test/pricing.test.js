@@ -6,7 +6,8 @@ const artist = { reference_price_cents: 18000, minimum_cents: 8000, deposit_perc
 
 test('a small simple piece falls back to the shop minimum', () => {
   const result = estimate({ size_cm: 3, detail_level: 'simple', color_mode: 'linework' }, artist);
-  assert.equal(result.hours, 0.5);
+  assert.equal(result.hours, 0.25, 'a 3 cm line piece is a quarter hour of needle');
+  assert.equal(result.chair_hours, 0.75, 'but three quarters of an hour in the chair, stencil included');
   assert.equal(result.low_cents, artist.minimum_cents);
   assert.ok(result.high_cents >= result.low_cents);
 });

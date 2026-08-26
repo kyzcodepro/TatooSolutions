@@ -174,7 +174,7 @@ function requestCard(request) {
             ${request.cover_up ? '<span><b>Cover-up</b></span>' : ''}
           </div>
           <div class="meta">
-            <span>Estimation : <b>${money(request.estimate_low_cents, currency)} – ${money(request.estimate_high_cents, currency)}</b> (${esc(formatHours(request.estimated_hours))} h)</span>
+            <span>Estimation : <b>${money(request.estimate_low_cents, currency)} – ${money(request.estimate_high_cents, currency)}</b> (${esc(formatHours(request.estimated_hours))} h de travail · ${esc(formatHours(request.estimated_chair_hours))} h sur place)</span>
             <span>Budget client : <b>${budget ? money(budget, currency) : 'non précisé'}</b></span>
             <span>${esc(request.client_email)}</span>
             ${request.client_phone ? `<span>${esc(request.client_phone)}</span>` : ''}
@@ -219,7 +219,8 @@ function openQuoteModal(request) {
   // What gets booked is the first session, not the whole project: the server caps
   // a slot at six hours, so proposing twenty would search for a day that does not
   // exist and offer nothing.
-  const hours = Math.min(request.estimated_hours || 2, MAX_SESSION_HOURS);
+  // The composer prefills the first sitting, which already carries its setup.
+  const hours = Math.min(request.estimated_session_hours || request.estimated_hours || 2, MAX_SESSION_HOURS);
 
   const host = el('modal-host');
   host.innerHTML = `
@@ -228,7 +229,9 @@ function openQuoteModal(request) {
         <h3 id="quote-title">Devis pour ${esc(request.client_name)}</h3>
         <p class="muted" style="font-size:0.9rem">
           Estimation automatique : ${money(request.estimate_low_cents, currency)} – ${money(request.estimate_high_cents, currency)}
-          sur ${esc(formatHours(request.estimated_hours))} h.
+          sur ${esc(formatHours(request.estimated_hours))} h de travail
+          (${esc(formatHours(request.estimated_chair_hours))} h sur place${request.estimated_chair_hours > MAX_SESSION_HOURS ? ', à découper en plusieurs séances' : ''}).
+          La durée ci-dessous est celle de <b>cette</b> séance, installation comprise.
         </p>
         <div class="field-row">
           <div><label for="q-price">Prix ferme (€)</label><input id="q-price" type="number" min="5" step="5" value="${price}"></div>

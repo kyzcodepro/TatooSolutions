@@ -101,8 +101,8 @@ part donc du **prix de référence** que le studio fixe pour une pièce type
 `prix = max(minimum studio, référence × facteurs)`, jamais en dessous du minimum.
 La fourchette s'élargit avec le travail (±12 % sur une petite pièce, ±23 % sur
 une grosse) : une fourchette étroite sur un long projet est une promesse
-intenable. La durée reste calculée, mais elle ne sert plus qu'à découper les
-séances et à situer le rendez-vous — elle ne fait pas le prix.
+intenable. **La durée n'est pas calculée à partir de ces facteurs** — elle a son
+propre modèle, décrit plus bas.
 
 Le client voit le détail du calcul sur sa page de réservation : la pièce de
 référence, puis chaque propriété avec son effet en pourcentage. Un chiffre sans
@@ -141,6 +141,64 @@ studios déjà configurés. Les tests interdisent toute réaccélération de la 
 
 Les studios configurés avant ce changement gardent exactement leurs prix : leur
 pièce de référence vaut ce que leur taux horaire facturait pour elle.
+
+## Moteur de durée
+
+Le temps était le poids de prix arrondi au quart d'heure. Pratique, et faux : cela
+revient à affirmer que ce qui coûte 35 % de plus prend 35 % de temps en plus. Un
+seul nombre ne peut pas répondre aux deux questions.
+
+| Ce qu'on observe | Prix | Durée |
+| --- | --- | --- |
+| Couleur vs noir & gris | ×1,35 | ×1,3 (20–40 % de temps en plus) |
+| Côtes | ×1,25 | ×1,3 — ça fait mal, ce n'est pas lent |
+| Main | ×1,2 | **×2** — la peau bouge, cicatrise mal, se retravaille |
+| Noir plein | ×1 | ×0,85 — audacieux et rapide |
+| Hyperréalisme | ×2 | **×3,2** — le facteur le plus lourd, et plus lourd en temps qu'en prix |
+| Recouvrement | ×1,4 | ×1,35 |
+
+Les deux classements ne sont pas le même : une pièce pénible n'est pas une pièce
+lente, et le produit le dit maintenant.
+
+```
+travail  = 1,25 h × (taille/10)^1,5 × détail × rendu × zone × recouvrement
+séances  = plafond(travail / (6 h − installation))
+sur place = travail + séances × installation
+```
+
+L'**installation** — pochoir, préparation, pauses — vaut 30 min sur une petite
+pièce et 1 h sur un dos, **par séance et non par projet** : un dos en quatre
+séances la paie quatre fois. Les studios la chiffrent à 20–45 min et disent
+qu'un rendez-vous dure au moins une heure de plus que l'aiguille. L'oublier,
+c'est pourquoi une réservation d'1 h 30 débordait à deux heures.
+
+L'exposant 1,5 dit que le temps croît moins vite que la surface : une grande
+pièce se lit de plus loin, se trace plus large, et comporte de la peau vide entre
+ses éléments.
+
+Le client voit **deux nombres** : le travail à l'aiguille, et le temps qu'il doit
+réellement bloquer. C'est le second qui compte pour lui, et c'était celui que le
+produit ne donnait pas.
+
+### Calibrage
+
+Chaque constante est ajustée sur des fourchettes publiées par des studios, listées
+en bas de `src/duration.js` et vérifiées une par une dans `test/duration.test.js` :
+
+| Pièce | Publié | Modèle |
+| --- | --- | --- |
+| ≤ 5 cm, ligne simple | 15–45 min | 45 min |
+| 10–15 cm, détail moyen | 1–3 h | 1 h 45 – 3 h |
+| Sternum ~20 cm | 2–4 h | 4 h 15 |
+| Avant-bras ~25 cm | 2–5 h+ | 5 h 15 |
+| Torse ~35 cm | 4–6 h+ | 4 h 45 |
+| Manchette / dos ~55 cm | 12–20 h+ | 16 h 45 |
+| Jambe complète ~75 cm | 16–30 h+ | 26 h 45 |
+| Portrait photoréaliste, paume | 6–8 h (2 h en traditionnel) | 5 h 45 (2 h) |
+
+Ce sont des points de départ, pas une loi. Un studio qui connaît ses propres
+chiffres doit corriger la table — `test/duration.test.js` est le fichier à
+modifier en premier.
 
 ## Cycle de vie d'une demande
 
@@ -266,7 +324,8 @@ src/
   db.js          interface de données asynchrone : node:sqlite ou libSQL/Turso
   routes/api.js  endpoints JSON (auth, public, boîte artiste, agenda, stats)
   service.js     règles métier : devis, acompte, agenda, no-show, statistiques
-  pricing.js     moteur d'estimation (pur, testé isolément)
+  pricing.js     moteur de prix (pur, testé isolément)
+  duration.js    moteur de durée : temps de travail, installation, découpe en séances
   availability.js horaires d'ouverture, fuseau, créneaux et rendu des dates
   studio.js      studios à plusieurs : membres, invitations, agenda, statistiques
   messages.js    file d'envoi : confirmations, rappels, cicatrisation

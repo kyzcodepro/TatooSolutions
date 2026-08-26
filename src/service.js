@@ -70,14 +70,16 @@ export async function createRequest(artist, brief) {
       artist_id, public_token, client_name, client_email, client_phone, description,
       style, placement, size_cm, color_mode, detail_level, cover_up, budget_cents,
       reference_urls, availability, is_adult, status, estimated_hours,
+      estimated_chair_hours, estimated_session_hours,
       estimate_low_cents, estimate_high_cents, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?, ?, ?, ?)
   `, [
     artist.id, token, brief.client_name, brief.client_email, brief.client_phone ?? '',
     brief.description, brief.style ?? '', brief.placement ?? '', brief.size_cm,
     brief.color_mode, brief.detail_level, brief.cover_up ? 1 : 0, brief.budget_cents ?? null,
     JSON.stringify(brief.reference_urls ?? []), JSON.stringify(brief.availability ?? []),
-    1, result.hours, result.low_cents, result.high_cents, now, now,
+    1, result.hours, result.chair_hours, result.session_hours,
+    result.low_cents, result.high_cents, now, now,
   ]);
 
   const request = await db.get('SELECT * FROM requests WHERE id = ?', [info.lastInsertRowid]);
@@ -121,7 +123,9 @@ export async function sendQuote(artist, requestId, {
     throw conflict(`A quote can only be sent on a new or quoted request (this one is "${request.status}")`);
   }
 
-  const hours = duration_hours ?? request.estimated_hours ?? 1;
+  // The first appointment, not the whole project: a fifteen-hour back piece has
+  // no fifteen-hour slot, and booking one finds nothing.
+  const hours = duration_hours ?? request.estimated_session_hours ?? request.estimated_hours ?? 1;
   const deposit = deposit_cents ?? suggestDeposit(price_cents, artist.deposit_percent);
   if (deposit > price_cents) throw bad('Deposit cannot exceed the quoted price');
 
@@ -192,6 +196,8 @@ export async function quoteView(token) {
       placement: request.placement,
       size_cm: request.size_cm,
       estimated_hours: request.estimated_hours,
+      estimated_chair_hours: request.estimated_chair_hours,
+      estimated_session_hours: request.estimated_session_hours,
       estimate_low_cents: request.estimate_low_cents,
       estimate_high_cents: request.estimate_high_cents,
       quote_price_cents: request.quote_price_cents,

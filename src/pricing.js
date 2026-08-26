@@ -3,12 +3,17 @@
 // A tattooist does not price by multiplying an hourly rate: they price the piece
 // — its size, how detailed it is, whether it is colour, where it sits on the body,
 // whether it covers something. So the price is built from those properties, from
-// a reference price the studio sets, and the duration is a by-product used for
-// planning sessions rather than the thing being sold.
+// a reference price the studio sets.
+//
+// How long it takes is a separate question with a separate model, in duration.js.
+// The two used to share one number, which quietly claimed that anything costing
+// 35 % more takes 35 % longer — see that file for why it does not.
 //
 // The point is not to be exact. It is to give the client an honest bracket, to
 // show what drives it, and to flag a budget nowhere near the work before anyone
 // spends an evening in DMs.
+
+import { duration } from './duration.js';
 
 export const DETAIL_LEVELS = ['simple', 'medium', 'high', 'hyperrealism'];
 export const COLOR_MODES = ['linework', 'blackwork', 'blackgrey', 'color'];
@@ -38,7 +43,11 @@ const TOUGH_PLACEMENTS = [
 ];
 
 const COVER_UP_FACTOR = 1.4;
-export const MAX_SESSION_HOURS = 6;
+
+// Duration is a different question from price and has its own model, fitted to
+// what studios publish about their own work. Asking one number to answer both is
+// what made the hours wrong.
+export { MAX_SESSION_HOURS } from './duration.js';
 
 /** The size everything is measured against: the studio's reference piece. */
 export const REFERENCE_SIZE_CM = 10;
@@ -95,7 +104,6 @@ export function placementFactor(placement = '') {
 }
 
 const round2 = (n) => Math.round(n * 100) / 100;
-const roundQuarter = (h) => Math.max(0.5, Math.round(h * 4) / 4);
 const roundTo5 = (cents) => Math.round(cents / 500) * 500;
 
 /**
@@ -142,17 +150,16 @@ export function estimate(brief, artist) {
   const midpoint = Math.max(minimum, Math.round(reference * combined));
   const flooredByMinimum = midpoint === minimum && Math.round(reference * combined) < minimum;
 
-  // Weight, not hours, drives the uncertainty: it is the same measure of "how
-  // much work is in there" without pretending to know a duration.
-  // Everything that makes the piece harder also makes it longer — including the
-  // area: thin skin and breaks slow the work down as surely as fine detail does.
+  // Weight drives how wide the bracket should be: it measures how much work is in
+  // there, which is what makes a price hard to promise. It is not a duration, and
+  // no longer pretends to be one.
   const weight = sizeWeight(brief.size_cm)
     * byKey.detail * byKey.color * byKey.placement * byKey.cover_up;
   const spread = spreadFor(weight);
+  const time = duration(brief);
   const low = Math.max(minimum, roundTo5(midpoint * (1 - spread)));
   const high = Math.max(low, roundTo5(midpoint * (1 + spread)));
 
-  const sessions = Math.max(1, Math.ceil(weight / MAX_SESSION_HOURS));
   const budget = Number(brief.budget_cents) || 0;
   const budgetGap = budget > 0 && budget < low ? low - budget : 0;
 
@@ -162,8 +169,15 @@ export function estimate(brief, artist) {
     factors: factors.filter((item) => item.factor !== 1 || item.key === 'size'),
     floored_by_minimum: flooredByMinimum,
 
-    hours: roundQuarter(weight),
-    sessions,
+    // Two different hours, because they answer two different questions. The
+    // needle time is the work; the chair time is what the client blocks out, and
+    // it carries the stencil and setup of every session it takes.
+    hours: time.needle_hours,
+    chair_hours: time.chair_hours,
+    session_hours: time.session_hours,
+    setup_hours: time.setup_hours,
+    sessions: time.sessions,
+    duration_factors: time.factors,
     spread_percent: Math.round(spread * 100),
     low_cents: low,
     high_cents: high,

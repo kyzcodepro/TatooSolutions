@@ -142,15 +142,19 @@ async function runEstimate() {
   try {
     const { estimate } = await api('POST', `/api/public/artists/${encodeURIComponent(slug)}/estimate`, payload);
     el('estimate-range').textContent = `${money(estimate.low_cents, currency)} – ${money(estimate.high_cents, currency)}`;
+    // Chair time, not needle time: what the client has to block out is the number
+    // that matters to them, and it includes the stencil and setup of each sitting.
     el('estimate-detail').textContent =
-      `≈ ${formatHours(estimate.hours)} h de travail · ${estimate.sessions} séance${estimate.sessions > 1 ? 's' : ''}`
+      `${formatHours(estimate.chair_hours)} h sur place`
+      + (estimate.sessions > 1 ? ` en ${estimate.sessions} séances` : '')
+      + ` · ${formatHours(estimate.hours)} h de travail`
       + (estimate.spread_percent >= 18 ? ' · fourchette large sur un projet de cette taille' : '');
     el('estimate-deposit').textContent = money(estimate.deposit_cents, currency);
     renderFactors(estimate);
     pulseEstimate();
     // The first session, not the whole project: a nine-hour piece is booked in
     // instalments, and asking for a nine-hour slot finds nothing.
-    refreshSlots(Math.min(estimate.hours, 6));
+    refreshSlots(estimate.session_hours);
 
     const warning = el('budget-warning');
     if (!estimate.budget_realistic) {
@@ -183,6 +187,31 @@ function renderFactors(estimate) {
     rows.push('<div><span>Minimum studio appliqué</span><b>—</b></div>');
   }
   el('estimate-factors').innerHTML = rows.join('');
+  renderDuration(estimate);
+}
+
+/**
+ * The hours, broken down like the price — and separately from it, because they
+ * are not the same list. Colour costs a third more and takes a quarter more; a
+ * rib piece costs a quarter more and takes barely longer; a hand costs a little
+ * more and takes twice as long.
+ */
+function renderDuration(estimate) {
+  const rows = [
+    `<div><span>Pièce de référence (${artist.reference_size_cm} cm)</span><b>${esc(formatHours(1.25))} h</b></div>`,
+    ...estimate.duration_factors.map(({ label, factor }) => {
+      const delta = `${factor > 1 ? '+' : ''}${Math.round((factor - 1) * 100)} %`;
+      const tone = factor > 1 ? 'var(--warn)' : (factor < 1 ? 'var(--ok)' : 'var(--muted)');
+      return `<div><span>${esc(label)}</span><b style="color:${tone}">${factor === 1 ? '—' : esc(delta)}</b></div>`;
+    }),
+    `<div><span>Travail à l'aiguille</span><b>${esc(formatHours(estimate.hours))} h</b></div>`,
+    `<div><span>Installation, pochoir, pauses${estimate.sessions > 1 ? ` (×${estimate.sessions})` : ''}</span><b>+${esc(formatHours(estimate.chair_hours - estimate.hours))} h</b></div>`,
+    `<div class="strong"><span>Temps sur place</span><b>${esc(formatHours(estimate.chair_hours))} h</b></div>`,
+  ];
+  if (estimate.sessions > 1) {
+    rows.push(`<div><span>Réparti en</span><b>${estimate.sessions} séances de ${esc(formatHours(estimate.session_hours))} h</b></div>`);
+  }
+  el('estimate-duration').innerHTML = rows.join('');
 }
 
 // A brief sweep when the amount is recomputed: enough to notice, not enough to distract.

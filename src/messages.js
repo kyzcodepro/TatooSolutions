@@ -50,6 +50,8 @@ export async function queueArtistNewRequest(artist, request, estimateResult) {
       '',
       `${request.size_cm} cm · ${request.placement || 'zone à définir'} · ${request.color_mode} · ${request.detail_level}`,
       `Estimation : ${formatMoney(estimateResult.low_cents, artist.currency)} – ${formatMoney(estimateResult.high_cents, artist.currency)}`,
+      `Durée : ${estimateResult.hours} h de travail, ${estimateResult.chair_hours} h sur place`
+        + (estimateResult.sessions > 1 ? ` en ${estimateResult.sessions} séances` : ''),
       budgetLine,
       request.availability?.length ? `Disponibilités : ${request.availability.join(', ')}` : '',
       '',
@@ -134,7 +136,9 @@ export async function queueRequestReceived(artist, request, estimateResult) {
       '',
       `Merci pour votre projet : ${request.description}`,
       `Estimation indicative : ${formatMoney(estimateResult.low_cents, artist.currency)} – ${formatMoney(estimateResult.high_cents, artist.currency)}`,
-      `Durée estimée : ${estimateResult.hours} h (${estimateResult.sessions} séance(s))`,
+      `Temps sur place : ${estimateResult.chair_hours} h`
+        + (estimateResult.sessions > 1 ? ` réparties en ${estimateResult.sessions} séances` : '')
+        + ` — dont ${estimateResult.hours} h de travail`,
       '',
       `${artist.studio_name} revient vers vous avec un devis ferme. Suivi de votre demande :`,
       `{{base_url}}/q/${request.public_token}`,
