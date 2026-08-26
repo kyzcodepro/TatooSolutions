@@ -9,7 +9,8 @@
     "dev": "node --watch start.js",
     "seed": "node src/seed.js",
     "test": "node --test test/*.test.js",
-    "build": "node scripts/write-build-info.js"
+    "build": "node scripts/write-build-info.js",
+    "verify:browser": "node verify/browser.mjs"
   },
   "main": "start.js",
   "dependencies": {

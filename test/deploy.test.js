@@ -204,10 +204,13 @@ test('the module exports a default handler, as hosting platforms require', async
   assert.equal(mod.default, mod.handleRequest, 'and it is the request handler');
 
   // start.js listens as a side effect, so give it an ephemeral port and close it.
+  // Binding a fixed port here would fail against anything already running.
   process.env.PORT = '0';
   const entry = await import('../start.js');
   try {
     assert.equal(typeof entry.default, 'function', 'start.js exports a handler too');
+    await new Promise((ready) => (entry.server.listening ? ready() : entry.server.once('listening', ready)));
+    assert.notEqual(entry.server.address().port, 3000, 'PORT=0 must mean an ephemeral port');
   } finally {
     entry.server.close();
     delete process.env.PORT;

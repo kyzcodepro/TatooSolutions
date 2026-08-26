@@ -9,7 +9,11 @@
 import { createApp, handleRequest } from './src/server.js';
 import { dispatchDue } from './src/messages.js';
 
-const port = Number(process.env.PORT) || 3000;
+// PORT=0 means "any free port", which `|| 3000` silently turned back into 3000 —
+// so a test asking for an ephemeral port got the real one, and failed against
+// whatever was already listening there.
+const requested = Number.parseInt(process.env.PORT ?? '', 10);
+const port = Number.isInteger(requested) && requested >= 0 ? requested : 3000;
 
 // Listen first, set up the database on the first request. If the database cannot
 // be opened, the platform then gets a running server that explains the problem,

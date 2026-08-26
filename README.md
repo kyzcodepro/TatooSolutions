@@ -92,7 +92,7 @@ part donc du **prix de référence** que le studio fixe pour une pièce type
 
 | Propriété | Effet |
 | --- | --- |
-| Taille | courbe continue, ×1 à 10 cm, ×2,3 à 18 cm, ×6 à 40 cm |
+| Taille | courbe lisse, ×1 à 10 cm, ×2,3 à 18 cm, ×6,1 à 40 cm |
 | Niveau de détail | ×0,7 (simple) à ×2 (hyperréalisme) — le facteur le plus lourd |
 | Rendu | ×0,85 (ligne seule) à ×1,35 (couleur) |
 | Zone | jusqu'à ×1,3 (côtes, mains, cou, visage…) |
@@ -106,10 +106,77 @@ séances et à situer le rendez-vous — elle ne fait pas le prix.
 
 Le client voit le détail du calcul sur sa page de réservation : la pièce de
 référence, puis chaque propriété avec son effet en pourcentage. Un chiffre sans
-explication ne se discute pas, et ne se croit pas non plus.
+explication ne se discute pas, et ne se croit pas non plus. Les facteurs sont
+arrondis **avant** d'être multipliés, pas après : un client qui refait le calcul
+avec les nombres affichés doit retomber sur le prix affiché, sinon le détail
+n'explique rien, il décore.
+
+### La courbe de taille
+
+Deux versions précédentes se sont trompées, chacune à sa manière.
+
+Des **paliers** d'abord : à une frontière, un centimètre changeait le prix de
+moitié, et à l'intérieur d'un palier quatre centimètres ne changeaient rien.
+
+Puis une **table d'ancrages reliés par des segments**, ce qui rendait le prix
+continu mais pas sa pente. Le coût d'un centimètre supplémentaire sautait à
+chaque ancrage franchi — 12,5 % à 5 cm, 20 % à 6 cm, 8,7 % à 15 cm, 12 % à
+16 cm. Le client qui déplaçait le curseur sentait le prix s'emballer puis caler
+sans rien voir qui l'explique. Pire : les ancrages, choisis à la main, impliquaient
+un exposant qui oscillait entre 0,44 et 1,63 d'un segment à l'autre.
+
+La forme retenue est celle que la chose a vraiment :
+
+```
+poids = 0,4 + taux × taille^1,5
+```
+
+un terme fixe — l'installation, le stencil, la séance elle-même, ce qui fait
+qu'une toute petite pièce n'est jamais presque gratuite — plus un travail qui
+croît plus vite que la longueur (il remplit une surface) et moins vite que la
+surface (une grande pièce comporte proportionnellement plus de vide). Le taux est
+**dérivé**, pas saisi, pour que la courbe passe exactement par la pièce de
+référence : un arrondi à cet endroit reparamétrerait silencieusement tous les
+studios déjà configurés. Les tests interdisent toute réaccélération de la pente.
 
 Les studios configurés avant ce changement gardent exactement leurs prix : leur
 pièce de référence vaut ce que leur taux horaire facturait pour elle.
+
+## Cycle de vie d'une demande
+
+Un projet se termine de cinq façons, et ce ne sont pas les mêmes :
+
+```
+nouvelle → devis envoyé → réservée → terminée
+                │            │
+                │            ├─ annulée   (acompte versé, séance décommandée)
+                │            └─ no-show   (acompte versé, client absent)
+                ├─ refusée   (l'artiste ne prend pas le projet)
+                └─ expirée   (le devis a dépassé sa validité)
+```
+
+Les trois derniers états ont chacun le leur. Confondre « annulée » et « refusée »
+— ce que le produit faisait — fait mentir la boîte de réception et fausse le taux
+de conversion, puisqu'un client qui a payé son acompte y était compté comme un
+projet décliné. Un no-show laissé en « réservée » rendait la liste des séances à
+venir impossible à vider.
+
+La conversion compte **toute demande arrivée jusqu'à l'acompte**, quoi qu'il se
+soit passé ensuite : l'argent a bougé.
+
+## L'heure affichée est celle du studio
+
+Une séance a lieu quelque part, à l'heure de cet endroit. C'est donc la seule
+horloge qui compte, et elle vaut pour toutes les surfaces : les emails, le
+tableau de bord, la page de suivi du client, et jusqu'aux champs `datetime-local`
+— sinon un artiste en déplacement bloque les mauvaises heures.
+
+Quand le lecteur est dans un autre fuseau, on le lui dit plutôt que de le laisser
+deviner. Le décalage annoncé est celui **en vigueur le jour concerné**, pas le
+jour de l'envoi : une séance réservée en août pour fin décembre à Montréal est en
+UTC-5, pas en UTC-4. Le bandeau du tableau de bord, lui, couvre un agenda entier
+— donc il nomme le lieu et tait le décalage, puisqu'une liste à cheval sur un
+changement d'heure en a deux.
 
 ## Studios à plusieurs
 
@@ -134,6 +201,15 @@ quatorze jours ; une invitation en attente occupe une place, sinon six invitatio
 rempliraient un studio de six. Retirer un artiste ne supprime rien : il repart
 avec ses réservations, ses clients et son historique, à la tête d'un studio à lui.
 
+### Statistiques par artiste
+
+Le tableau du studio suit la même ligne que le reste. Le **volume** se partage —
+demandes reçues, conversion, taux de no-show, heures déjà réservées — parce que
+l'agenda se partage déjà, et qu'un studio incapable de lire sa propre charge ne
+peut pas organiser sa semaine. L'**argent** par artiste ne s'affiche que pour le
+propriétaire, plus sa propre ligne pour chacun : le propriétaire paie la facture,
+et personne d'autre n'a besoin de lire les recettes d'un collègue.
+
 ## Disponibilités
 
 Le studio déclare sa semaine (sept jours, ouvert/fermé et une plage horaire), son
@@ -152,6 +228,25 @@ décalage **à cet instant précis** plutôt que d'en supposer un. Le dernier
 dimanche de mars, 11 h à Paris n'est pas l'instant qu'il était la veille, et les
 tests le vérifient dans les deux sens.
 
+## Vérifier ce que les tests ne voient pas
+
+`npm test` tient les données honnêtes et ne dit rien de ce qu'une personne
+regarde. `npm run verify:browser` ouvre les vraies pages dans un vrai navigateur,
+sur un serveur qui tourne, et vérifie trois choses qu'un test côté serveur ne
+peut structurellement pas voir : qu'aucune page ne déborde d'un téléphone, que
+rien ne lève d'exception dans la console, et que les heures à l'écran sont celles
+du studio et non celles du lecteur.
+
+```sh
+npm start &
+npm run verify:browser          # INKFLOW_VERIFY_URL pour viser ailleurs
+```
+
+Il se crée son propre studio de test, à Montréal, et lit les pages depuis un
+navigateur réglé sur Paris. C'est lui qui a trouvé le tableau de bord qui
+débordait de 58 px sur chacun de ses onglets, et une séance de décembre étiquetée
+avec le décalage d'août. Ni l'un ni l'autre ne faisait échouer un test.
+
 ## Architecture
 
 ```
@@ -163,14 +258,15 @@ src/
   routes/api.js  endpoints JSON (auth, public, boîte artiste, agenda, stats)
   service.js     règles métier : devis, acompte, agenda, no-show, statistiques
   pricing.js     moteur d'estimation (pur, testé isolément)
-  availability.js horaires d'ouverture, fuseau et créneaux proposables
-  studio.js      studios à plusieurs : membres, invitations, agenda partagé
+  availability.js horaires d'ouverture, fuseau, créneaux et rendu des dates
+  studio.js      studios à plusieurs : membres, invitations, agenda, statistiques
   messages.js    file d'envoi : confirmations, rappels, cicatrisation
   payments.js    acomptes : Stripe Checkout + vérification de signature, ou mock
   mailer.js      envoi réel : Resend, Postmark, Brevo, ou console
   auth.js        PBKDF2 + sessions en cookie HttpOnly
-public/          landing, connexion, tableau de bord, page de réservation, page de devis
+public/          landing, connexion, tableau de bord, réservation, devis, studio, invitation
 test/            tests d'estimation et parcours API de bout en bout
+verify/          contrôle navigateur : débordement mobile, console, heures affichées
 ```
 
 Points d'attention côté sécurité et intégrité :
