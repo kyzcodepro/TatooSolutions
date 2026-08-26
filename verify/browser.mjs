@@ -168,17 +168,40 @@ say(`estimation      : ${await read(book, '#estimate-range')} — ${await read(b
 
 /* ------------------------------------------------------------------ mobile */
 
-const overflowOf = (target) => target.evaluate(
-  () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-);
+/**
+ * The worst overflow over a window, not a single reading.
+ *
+ * A sweep animation on the estimate card pushed the booking page 388px sideways
+ * for about a second after every keystroke, and settled before and after. One
+ * measurement at an arbitrary moment saw nothing. Anything that moves has to be
+ * watched while it moves.
+ */
+async function worstOverflow(target, { samples = 12, everyMs = 150 } = {}) {
+  let worst = 0;
+  for (let i = 0; i < samples; i += 1) {
+    const over = await target.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    if (over > worst) worst = over;
+    await target.waitForTimeout(everyMs);
+  }
+  return worst;
+}
 
 // Logged out, so /login is really /login rather than a redirect to /app.
 const phone = watch(await (await browser.newContext({ locale: 'fr-FR' })).newPage(), 'mobile');
 await phone.setViewportSize({ width: 390, height: 844 });
 for (const path of ['/', `/b/${slug}`, `/q/${token}`, '/login', `/s/${slug}`]) {
   await phone.goto(BASE + path);
-  await phone.waitForTimeout(500);
-  const over = await overflowOf(phone);
+  // Typing is what triggers the estimate to redraw, and the redraw is what used
+  // to overflow. Measuring a page at rest would miss it.
+  if (path.startsWith('/b/')) {
+    await phone.waitForSelector('#size-number');
+    await phone.fill('#size-number', '27');
+    await phone.locator('#size-number').dispatchEvent('input');
+  }
+  await phone.waitForTimeout(300);
+  const over = await worstOverflow(phone);
   say(`débord 390px ${path.slice(0, 20).padEnd(22)} : ${over}px`);
   if (over > 0) complain(`${path} déborde de ${over}px sur mobile`);
 }
@@ -191,8 +214,8 @@ await appPhone.goto(`${BASE}/app`);
 await appPhone.waitForSelector('#stats .stat');
 for (const panel of ['inbox', 'agenda', 'outbox', 'studio', 'settings']) {
   await appPhone.click(`.tab[data-panel=${panel}]`);
-  await appPhone.waitForTimeout(500);
-  const over = await overflowOf(appPhone);
+  await appPhone.waitForTimeout(300);
+  const over = await worstOverflow(appPhone, { samples: 8 });
   say(`débord 390px /app ${panel.padEnd(17)} : ${over}px`);
   if (over > 0) complain(`/app onglet ${panel} déborde de ${over}px sur mobile`);
 }

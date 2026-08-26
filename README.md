@@ -222,6 +222,15 @@ une et de découvrir le conflit après. Proposer un créneau hors horaires reste
 possible, mais devient un acte délibéré — le serveur refuse tant que l'exception
 n'est pas confirmée.
 
+Le client les voit aussi. Le brief demandait « quand êtes-vous disponible ? » sur
+une liste de jours écrite en dur, si bien qu'un studio fermé le lundi recevait des
+demandes proposant le lundi. Les choix sont maintenant construits à partir de la
+semaine publiée du studio, et découpés en demi-journées seulement là où la plage
+horaire les couvre vraiment : ouvert le mardi de 9 h à 12 h, on propose le mardi
+matin et pas le mardi après-midi. Les prochains créneaux réels sont affichés en
+dessous — ceux de la première séance, pas du projet entier, puisqu'une pièce de
+neuf heures n'a aucun créneau de neuf heures.
+
 Les horaires sont des heures locales, le stockage est en UTC, et les deux ne
 coïncident pas deux fois par an : la conversion demande au fuseau quel était son
 décalage **à cet instant précis** plutôt que d'en supposer un. Le dernier

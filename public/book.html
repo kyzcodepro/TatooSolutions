@@ -8,8 +8,13 @@
 <link rel="stylesheet" href="/assets/app.css">
 <style>
   .book-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr); gap: 1.5rem; align-items: start; }
-  @media (max-width: 900px) { .book-grid { grid-template-columns: 1fr; } .estimate-card { position: static !important; } }
   .estimate-card { position: sticky; top: 82px; }
+  /* Not `static`: the refresh sweep is an absolutely positioned ::before, and a
+     static card stops being its containing block — the sweep then escapes the
+     card's own overflow:hidden and shoves the page 388px sideways for a second
+     every time the estimate updates. `relative` cancels the stickiness and keeps
+     the card in charge of what it contains. */
+  @media (max-width: 900px) { .book-grid { grid-template-columns: 1fr; } .estimate-card { position: relative; top: auto; } }
   .estimate-price { font-size: 2rem; font-weight: 690; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
   .chips { display: flex; flex-wrap: wrap; gap: 0.45rem; }
   .chip { border: 1px solid var(--line-strong); border-radius: 999px; padding: 0.35rem 0.75rem; cursor: pointer; font-size: 0.87rem; color: var(--muted); user-select: none; }
