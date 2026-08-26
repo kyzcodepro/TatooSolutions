@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio — Inkflow</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖋️</text></svg>">
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="/"><span class="brand-mark">IF</span> Inkflow</a>
+    <nav class="nav"><span class="muted" id="nav-studio"></span></nav>
+  </div>
+</header>
+
+<main class="wrap" style="padding:2.5rem 0 4rem">
+  <div id="loading" class="empty">Chargement…</div>
+  <div id="content" class="hidden">
+    <h1 class="display" id="studio-name"></h1>
+    <p class="lede">Choisissez votre artiste : chacun gère ses projets, ses tarifs et son agenda.</p>
+    <div class="feature-grid" id="artists" style="margin-top:2rem"></div>
+  </div>
+</main>
+
+<script type="module" src="/assets/studio.js"></script>
+</body>
+</html>

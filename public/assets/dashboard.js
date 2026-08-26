@@ -45,7 +45,11 @@ async function boot() {
     loadRequests();
   });
 
-  await Promise.all([loadStats(), loadRequests(), loadAppointments(), loadBlocks(), loadMessages()]);
+  // Independently: a panel that fails should cost its own contents, not the page.
+  await Promise.all(
+    [loadStats, loadRequests, loadAppointments, loadBlocks, loadMessages, loadStudio]
+      .map((load) => load().catch((err) => console.error(`[panel] ${load.name}:`, err.message))),
+  );
 }
 
 function renderHeader() {
@@ -57,15 +61,26 @@ function renderHeader() {
 }
 
 function wireCopyLink() {
-  el('copy-link').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(el('booking-link').textContent);
-      toast('Lien copié.');
-    } catch {
-      toast('Copie impossible — sélectionnez le lien à la main.', 'error');
-    }
-  });
+  for (const [button, source] of [['copy-link', 'booking-link'], ['copy-studio', 'studio-link']]) {
+    el(button).addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(el(source).textContent);
+        toast('Lien copié.');
+      } catch {
+        toast('Copie impossible — sélectionnez le lien à la main.', 'error');
+      }
+    });
+  }
 }
+
+// Opening a tab reloads it: a panel filled when the page booted goes stale the
+// moment anything happens elsewhere — an invitation sent, a session marked done.
+const PANEL_LOADERS = {
+  inbox: () => loadRequests(),
+  agenda: () => Promise.all([loadAppointments(), loadBlocks()]),
+  outbox: () => loadMessages(),
+  studio: () => loadStudio(),
+};
 
 function wireTabs() {
   const tabs = [...document.querySelectorAll('.tab[data-panel]')];
@@ -76,6 +91,7 @@ function wireTabs() {
         other.setAttribute('aria-selected', String(active));
         el(`panel-${other.dataset.panel}`).classList.toggle('hidden', !active);
       }
+      PANEL_LOADERS[tab.dataset.panel]?.().catch((err) => toast(err.message, 'error'));
     });
   }
 }
@@ -441,6 +457,115 @@ function outboxState(message) {
   if (message.attempts >= 5) return '<span class="badge badge-declined">abandonné après 5 tentatives</span>';
   if (message.last_error) return '<span class="badge badge-quoted">nouvel essai au prochain passage</span>';
   return `<span class="badge">prévu ${esc(relative(message.scheduled_for))}</span>`;
+}
+
+/* ------------------------------------------------------------------- studio */
+
+let studioState = null;
+
+async function loadStudio() {
+  studioState = await api('GET', '/api/studio');
+  const { studio, members, pending_invites: invites, seats, is_owner: isOwner } = studioState;
+
+  el('studio-title').textContent = studio.name;
+  const url = `${location.origin}/s/${studio.slug}`;
+  el('studio-link').textContent = url;
+  el('open-studio').href = `/s/${studio.slug}`;
+
+  el('members').innerHTML = members.map((member) => `
+    <article class="item">
+      <div class="row-between">
+        <div>
+          <div class="item-title">${esc(member.studio_name)}${member.you ? ' <span class="badge">vous</span>' : ''}</div>
+          <div class="meta">
+            <span>${esc(member.email)}</span>
+            <span>${member.role === 'owner' ? 'Propriétaire' : 'Artiste'}</span>
+            <span>${member.accepting_requests ? 'Prend des demandes' : 'Fermé aux demandes'}</span>
+            <span><a href="/b/${esc(member.slug)}" target="_blank" rel="noopener">sa page</a></span>
+          </div>
+        </div>
+        ${isOwner && !member.you
+          ? `<button class="btn btn-sm btn-danger" data-remove="${member.id}">Retirer</button>`
+          : ''}
+      </div>
+    </article>`).join('');
+
+  el('members').querySelectorAll('[data-remove]').forEach((button) => {
+    button.addEventListener('click', () => removeMember(Number(button.dataset.remove)));
+  });
+
+  el('studio-side').innerHTML = isOwner ? `
+    <div class="card">
+      <h3>Inviter un artiste</h3>
+      <p class="muted" style="font-size:.88rem">
+        ${seats.used} / ${seats.max} places occupées, invitations en attente comprises.
+      </p>
+      <form id="invite-form" class="stack" style="margin-top:.8rem">
+        <div><label for="invite-email">Email</label>
+          <input id="invite-email" type="email" required placeholder="nina@studio.fr"></div>
+        <button class="btn btn-block" type="submit" ${seats.used >= seats.max ? 'disabled' : ''}>Envoyer l'invitation</button>
+      </form>
+      ${invites.length ? `<hr class="divider"><div class="faint" style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em">En attente</div>` : ''}
+      ${invites.map((invite) => `
+        <div class="row-between" style="padding:.5rem 0;border-bottom:1px solid var(--line)">
+          <div><b>${esc(invite.email)}</b>
+            <div class="faint" style="font-size:.82rem">expire ${esc(relative(invite.expires_at))}</div></div>
+          <button class="btn btn-sm btn-quiet" data-invite="${invite.id}">✕</button>
+        </div>`).join('')}
+    </div>` : `
+    <div class="card">
+      <h3>Votre studio</h3>
+      <p class="muted" style="font-size:.88rem">
+        Vous faites partie de ${esc(studio.name)}. Vos demandes, vos tarifs et vos
+        horaires ne sont visibles que par vous.
+      </p>
+    </div>`;
+
+  if (isOwner) {
+    el('invite-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try {
+        await api('POST', '/api/studio/invites', { email: el('invite-email').value });
+        toast('Invitation envoyée.');
+        await loadStudio();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+    el('studio-side').querySelectorAll('[data-invite]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        await api('DELETE', `/api/studio/invites/${button.dataset.invite}`);
+        await loadStudio();
+      });
+    });
+  }
+
+  const { appointments } = await api('GET', '/api/studio/agenda');
+  el('studio-agenda').innerHTML = appointments.length ? appointments.map((appointment) => `
+    <article class="item">
+      <div class="row-between">
+        <div>
+          <div class="item-title">${esc(dateTime(appointment.starts_at))} · ${esc(appointment.artist_name)}</div>
+          <div class="meta">
+            <span>${esc(appointment.client_name)}</span>
+            <span>${esc(appointment.description.slice(0, 60))}${appointment.description.length > 60 ? '…' : ''}</span>
+            <span>${money(appointment.price_cents, artist.currency)}</span>
+          </div>
+        </div>
+      </div>
+    </article>`).join('')
+    : '<div class="empty">Aucune séance programmée dans le studio.</div>';
+}
+
+async function removeMember(memberId) {
+  if (!confirm('Retirer cet artiste du studio ? Ses demandes, ses séances et ses clients restent les siens.')) return;
+  try {
+    await api('DELETE', `/api/studio/members/${memberId}`);
+    toast('Artiste retiré du studio.');
+    await loadStudio();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
 /* ----------------------------------------------------------------- settings */

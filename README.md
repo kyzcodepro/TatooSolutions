@@ -19,6 +19,7 @@ brief structuré → estimation automatique → devis + acompte → date bloqué
 | « Ça coûte combien ? » sans aucun détail | Formulaire de brief : taille, zone, rendu, niveau de détail, cover-up, références, budget, disponibilités |
 | Projets hors budget découverts au 3ᵉ message | L'écart entre le budget annoncé et la fourchette est calculé et affiché des deux côtés |
 | Doubles réservations, congés oubliés | Chevauchements refusés côté serveur, périodes bloquables |
+| Un studio à plusieurs | Page publique commune, agenda partagé, invitations — chaque artiste garde ses demandes, ses tarifs et ses horaires |
 | Dates proposées à l'aveugle | Horaires d'ouverture par jour, fuseau du studio, délai minimum : le devis se remplit en cliquant un créneau réellement libre |
 | Oublis de rendez-vous | Rappels automatiques J-7, à la limite d'annulation, et J-1 |
 | Demandes vues trop tard | L'artiste est prévenu par email à chaque brief et à chaque acompte, avec de quoi trancher sans ouvrir l'app |
@@ -30,7 +31,7 @@ brief structuré → estimation automatique → devis + acompte → date bloqué
 ```bash
 npm run seed     # crée le studio de démo « Atelier Noir » et son historique
 npm start        # http://localhost:3000
-npm test         # 99 tests (estimation, API, serverless, libSQL, envoi, paiement)
+npm test         # 108 tests (estimation, API, serverless, libSQL, envoi, paiement)
 ```
 
 Compte de démonstration : **demo@inkflow.app** / **demotattoo**
@@ -109,6 +110,29 @@ explication ne se discute pas, et ne se croit pas non plus.
 Les studios configurés avant ce changement gardent exactement leurs prix : leur
 pièce de référence vaut ce que leur taux horaire facturait pour elle.
 
+## Studios à plusieurs
+
+Un compte confondait autrefois l'artiste, le studio et la page de réservation.
+Les trois sont séparés : chaque compte possède un studio — un studio d'une seule
+personne pour un artiste solo — et le propriétaire peut y inviter jusqu'à
+**six artistes**, ce que vend la page de tarifs.
+
+Ce qui se partage et ce qui ne se partage pas est le cœur du modèle :
+
+| Partagé | Propre à chaque artiste |
+| --- | --- |
+| La page publique `/s/<studio>` | Les demandes et les échanges avec les clients |
+| L'agenda du studio (qui tatoue quoi, quand) | Les tarifs, les horaires, le fuseau |
+| L'abonnement | La page de réservation `/b/<artiste>` et son lien |
+
+Un collègue qui lirait votre négociation avec un client serait une fonction que
+personne n'a demandée.
+
+Les invitations partent par email, sont à usage unique et expirent au bout de
+quatorze jours ; une invitation en attente occupe une place, sinon six invitations
+rempliraient un studio de six. Retirer un artiste ne supprime rien : il repart
+avec ses réservations, ses clients et son historique, à la tête d'un studio à lui.
+
 ## Disponibilités
 
 Le studio déclare sa semaine (sept jours, ouvert/fermé et une plage horaire), son
@@ -139,6 +163,7 @@ src/
   service.js     règles métier : devis, acompte, agenda, no-show, statistiques
   pricing.js     moteur d'estimation (pur, testé isolément)
   availability.js horaires d'ouverture, fuseau et créneaux proposables
+  studio.js      studios à plusieurs : membres, invitations, agenda partagé
   messages.js    file d'envoi : confirmations, rappels, cicatrisation
   payments.js    acomptes : Stripe Checkout + vérification de signature, ou mock
   mailer.js      envoi réel : Resend, Postmark, Brevo, ou console

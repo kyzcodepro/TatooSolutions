@@ -33,6 +33,24 @@ const SCHEMA = [
   )`,
   // No sessions table: sessions are signed cookies (see src/auth.js), so they need
   // no server-side state and survive a request landing on another instance.
+  `CREATE TABLE IF NOT EXISTS studios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    owner_id INTEGER,
+    created_at TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS studio_invites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    studio_id INTEGER NOT NULL REFERENCES studios(id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    invited_by INTEGER,
+    expires_at TEXT NOT NULL,
+    accepted_at TEXT,
+    created_at TEXT NOT NULL
+  )`,
+  'CREATE INDEX IF NOT EXISTS idx_invites_studio ON studio_invites(studio_id, accepted_at)',
   `CREATE TABLE IF NOT EXISTS requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     artist_id INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
@@ -118,6 +136,8 @@ const MIGRATIONS = [
   ['artists', 'working_hours', 'TEXT'],
   ['artists', 'timezone', "TEXT NOT NULL DEFAULT 'Europe/Paris'"],
   ['artists', 'lead_hours', 'INTEGER NOT NULL DEFAULT 48'],
+  ['artists', 'studio_id', 'INTEGER'],
+  ['artists', 'role', "TEXT NOT NULL DEFAULT 'owner'"],
 ];
 
 // Idempotent by construction: each only touches rows not yet converted.
@@ -170,8 +190,31 @@ async function connect() {
     await addColumnIfMissing(adapter, table, column, definition);
   }
   for (const statement of BACKFILLS) await adapter.exec(statement);
+  await giveEveryArtistAStudio(adapter);
   db = adapter;
   return db;
+}
+
+/**
+ * An account used to be an artist, a studio and a booking page at once. Splitting
+ * them means every existing artist becomes the owner of a studio of one — nothing
+ * changes for a solo artist, and a second person can now join.
+ */
+async function giveEveryArtistAStudio(adapter) {
+  const orphans = await adapter.all(
+    'SELECT id, studio_name, slug FROM artists WHERE studio_id IS NULL ORDER BY id',
+  );
+  for (const artist of orphans) {
+    let slug = artist.slug;
+    let n = 2;
+    while (await adapter.get('SELECT id FROM studios WHERE slug = ?', [slug])) slug = `${artist.slug}-${n++}`;
+    const info = await adapter.run(
+      'INSERT INTO studios (name, slug, owner_id, created_at) VALUES (?, ?, ?, ?)',
+      [artist.studio_name, slug, artist.id, nowIso()],
+    );
+    await adapter.run("UPDATE artists SET studio_id = ?, role = 'owner' WHERE id = ?",
+      [info.lastInsertRowid, artist.id]);
+  }
 }
 
 async function addColumnIfMissing(adapter, table, column, definition) {

@@ -49,6 +49,7 @@
     <button class="tab" role="tab" data-panel="inbox" aria-selected="true">Demandes <span id="inbox-count" class="pill hidden"></span></button>
     <button class="tab" role="tab" data-panel="agenda" aria-selected="false">Agenda</button>
     <button class="tab" role="tab" data-panel="outbox" aria-selected="false">Messages</button>
+    <button class="tab" role="tab" data-panel="studio" aria-selected="false">Studio</button>
     <button class="tab" role="tab" data-panel="settings" aria-selected="false">Réglages</button>
   </div>
 
@@ -89,6 +90,34 @@
       <button class="btn btn-ghost btn-sm" id="dispatch">Envoyer ce qui est dû</button>
     </div>
     <div class="card" style="margin-top:1rem"><div id="messages"></div></div>
+  </section>
+
+  <section id="panel-studio" class="hidden">
+    <div class="grid" style="grid-template-columns:minmax(0,1.4fr) minmax(280px,0.6fr)">
+      <div>
+        <div class="row-between">
+          <div>
+            <h3 id="studio-title">Studio</h3>
+            <p class="muted" style="margin:.2rem 0 0">
+              Le studio partage sa page publique et son agenda. Les demandes, les tarifs
+              et les horaires restent propres à chaque artiste.
+            </p>
+          </div>
+          <div class="link-box" style="min-width:min(360px,100%)">
+            <code id="studio-link">—</code>
+            <button class="btn btn-sm btn-ghost" id="copy-studio">Copier</button>
+            <a class="btn btn-sm btn-quiet" id="open-studio" href="#" target="_blank" rel="noopener">Ouvrir</a>
+          </div>
+        </div>
+        <div id="members" style="margin-top:1.2rem"></div>
+
+        <h3 style="margin-top:2rem">Agenda du studio</h3>
+        <p class="muted" style="margin:.2rem 0 0;font-size:.9rem">Toutes les séances à venir, tous artistes confondus.</p>
+        <div id="studio-agenda" style="margin-top:.8rem"></div>
+      </div>
+
+      <aside id="studio-side"></aside>
+    </div>
   </section>
 
   <section id="panel-settings" class="hidden">

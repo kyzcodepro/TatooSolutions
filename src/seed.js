@@ -8,6 +8,7 @@ import { getDb, nowIso } from './db.js';
 import { hashPassword } from './auth.js';
 import * as service from './service.js';
 import { dispatchDue } from './messages.js';
+import { ensureStudio } from './studio.js';
 
 export const DEMO_EMAIL = 'demo@inkflow.app';
 export const DEMO_PASSWORD = 'demotattoo';
@@ -79,7 +80,9 @@ async function createDemoArtist(db) {
     JSON.stringify(['japonais', 'blackwork', 'botanique', 'fine line']),
     nowIso(),
   ]);
-  return db.get('SELECT * FROM artists WHERE id = ?', [info.lastInsertRowid]);
+  const artist = await db.get('SELECT * FROM artists WHERE id = ?', [info.lastInsertRowid]);
+  await ensureStudio(artist);
+  return db.get('SELECT * FROM artists WHERE id = ?', [artist.id]);
 }
 
 export async function seedDemo() {

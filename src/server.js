@@ -33,6 +33,8 @@ const PAGES = [
   [/^\/app\/?$/, 'app.html'],
   [/^\/b\/[^/]+\/?$/, 'book.html'],
   [/^\/q\/[^/]+\/?$/, 'quote.html'],
+  [/^\/join\/[^/]+\/?$/, 'join.html'],
+  [/^\/s\/[^/]+\/?$/, 'studio.html'],
 ];
 
 async function serveFile(res, absolutePath, status = 200) {

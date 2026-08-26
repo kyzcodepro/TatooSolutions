@@ -9,6 +9,8 @@
     { "source": "/app", "destination": "/app.html" },
     { "source": "/b/:slug", "destination": "/book.html" },
     { "source": "/q/:token", "destination": "/quote.html" },
+    { "source": "/join/:token", "destination": "/join.html" },
+    { "source": "/s/:slug", "destination": "/studio.html" },
     { "source": "/api/(.*)", "destination": "/api/index?__path=/api/$1" }
   ]
 }

@@ -9,6 +9,7 @@ import { estimate, referencePrice, REFERENCE_SIZE_CM, DETAIL_LEVELS, COLOR_MODES
 import { providerNames, splitAddress, baseUrl } from '../mailer.js';
 import { paymentsProvider, verifyWebhook, PaymentError } from '../payments.js';
 import { isTime, parseWorkingHours, DEFAULT_WORKING_HOURS } from '../availability.js';
+import * as studio from '../studio.js';
 import { dispatchDue, MAX_SEND_ATTEMPTS } from '../messages.js';
 import * as service from '../service.js';
 
@@ -81,6 +82,8 @@ api.post('/api/auth/signup', async (req, res) => {
   const password = v.str(body.password, 'password', { min: 8, max: 200 });
   const studioName = v.str(body.studio_name, 'studio_name', { max: 80 });
   const city = v.str(body.city, 'city', { required: false, max: 80 });
+  const invite = v.str(body.invite, 'invite', { required: false, max: 100 }) || null;
+  if (invite) await studio.readInvite(invite); // fail before creating an orphan account
   const db = await getDb();
 
   if (await db.get('SELECT id FROM artists WHERE email = ?', [email])) {
@@ -93,11 +96,30 @@ api.post('/api/auth/signup', async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `, [email, hash, salt, studioName, slug, city, nowIso()]);
 
-  const artist = await db.get('SELECT * FROM artists WHERE id = ?', [info.lastInsertRowid]);
+  const artistId = info.lastInsertRowid;
+  if (invite) {
+    await studio.consumeInvite(invite, artistId);
+  } else {
+    // Every account owns a studio, even a studio of one.
+    const studioSlug = await uniqueStudioSlug(slug);
+    const created = await db.run('INSERT INTO studios (name, slug, owner_id, created_at) VALUES (?, ?, ?, ?)',
+      [studioName, studioSlug, artistId, nowIso()]);
+    await db.run("UPDATE artists SET studio_id = ?, role = 'owner' WHERE id = ?", [created.lastInsertRowid, artistId]);
+  }
+
+  const artist = await db.get('SELECT * FROM artists WHERE id = ?', [artistId]);
   const session = createSession(artist.id);
   setCookie(res, SESSION_COOKIE, session.token, { maxAge: session.maxAge });
   json(res, 201, { artist: publicArtist(artist) });
 });
+
+async function uniqueStudioSlug(base) {
+  const db = await getDb();
+  let slug = base;
+  let n = 2;
+  while (await db.get('SELECT id FROM studios WHERE slug = ?', [slug])) slug = `${base}-${n++}`;
+  return slug;
+}
 
 async function uniqueSlug(base) {
   const db = await getDb();
@@ -345,6 +367,58 @@ api.post('/api/requests/:id/decline', async (req, res, { params }) => {
   const body = await readJson(req);
   const reason = v.str(body.reason, 'reason', { required: false, max: 300 });
   json(res, 200, { request: await service.declineRequest(artist, v.int(params.id, 'id'), reason) });
+});
+
+/* -------------------------------------------------------------------- studio */
+
+api.get('/api/studio', async (req, res) => {
+  const artist = await requireArtist(req);
+  json(res, 200, await studio.studioView(artist));
+});
+
+api.patch('/api/studio', async (req, res) => {
+  const artist = await requireArtist(req);
+  const body = await readJson(req);
+  const name = v.str(body.name, 'name', { max: 80 });
+  json(res, 200, { studio: await studio.renameStudio(artist, name) });
+});
+
+api.post('/api/studio/invites', async (req, res) => {
+  const artist = await requireArtist(req);
+  const body = await readJson(req);
+  const invite = await studio.inviteMember(artist, v.email(body.email));
+  // The token travels by email; echoing it to the caller would let an owner
+  // bypass the invitee's mailbox entirely.
+  json(res, 201, { email: invite.email, expires_at: invite.expires_at });
+});
+
+api.delete('/api/studio/invites/:id', async (req, res, { params }) => {
+  const artist = await requireArtist(req);
+  json(res, 200, await studio.cancelInvite(artist, v.int(params.id, 'id')));
+});
+
+api.delete('/api/studio/members/:id', async (req, res, { params }) => {
+  const artist = await requireArtist(req);
+  json(res, 200, await studio.removeMember(artist, v.int(params.id, 'id')));
+});
+
+api.get('/api/studio/agenda', async (req, res, { url }) => {
+  const artist = await requireArtist(req);
+  json(res, 200, {
+    appointments: await studio.studioAgenda(artist.studio_id, {
+      from: url.searchParams.get('from'),
+      to: url.searchParams.get('to'),
+    }),
+  });
+});
+
+api.get('/api/public/studios/:slug', async (req, res, { params }) => {
+  json(res, 200, await studio.publicStudio(params.slug));
+});
+
+api.get('/api/public/invites/:token', async (req, res, { params }) => {
+  const { invite, studio: found } = await studio.readInvite(params.token);
+  json(res, 200, { studio_name: found.name, email: invite.email, expires_at: invite.expires_at });
 });
 
 /* -------------------------------------------------------------- appointments */

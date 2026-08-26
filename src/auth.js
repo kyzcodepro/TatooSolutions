@@ -123,5 +123,7 @@ export function publicArtist(artist) {
     timezone: artist.timezone || DEFAULT_TIMEZONE,
     lead_hours: artist.lead_hours ?? 48,
     accepting_requests: !!artist.accepting_requests,
+    studio_id: artist.studio_id,
+    role: artist.role || 'owner',
   };
 }

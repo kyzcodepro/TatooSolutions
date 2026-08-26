@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rejoindre un studio — Inkflow</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖋️</text></svg>">
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="/"><span class="brand-mark">IF</span> Inkflow</a>
+  </div>
+</header>
+
+<main class="auth-shell" style="padding:3rem 0">
+  <div class="bleed bleed-a"></div>
+  <div class="grain"></div>
+  <div class="wrap-narrow">
+    <div id="loading" class="empty">Chargement de l'invitation…</div>
+
+    <form class="card card-pad-lg hidden" id="join-form">
+      <span class="eyebrow" id="studio-name"></span>
+      <h2 class="display" style="margin-top:.8rem">Créez votre espace</h2>
+      <p class="muted">
+        Vous gardez vos tarifs, vos horaires, vos demandes et vos clients. Le studio
+        partage sa page publique et son agenda — pas votre boîte de demandes.
+      </p>
+
+      <div class="field"><label for="join-studio">Votre nom d'artiste</label>
+        <input id="join-studio" name="studio_name" required maxlength="80" placeholder="Nina Ink"></div>
+      <div class="field"><label for="join-city">Ville</label>
+        <input id="join-city" name="city" maxlength="80"></div>
+      <div class="field"><label for="join-email">Email</label>
+        <input id="join-email" name="email" type="email" required readonly>
+        <p class="hint">L'adresse invitée par le studio.</p></div>
+      <div class="field"><label for="join-password">Mot de passe</label>
+        <input id="join-password" name="password" type="password" autocomplete="new-password" minlength="8" required>
+        <p class="hint">8 caractères minimum.</p></div>
+
+      <button class="btn btn-block tap" type="submit" style="margin-top:1.2rem">Rejoindre le studio</button>
+    </form>
+
+    <div class="card card-pad-lg hidden center" id="refused">
+      <h2 class="display">Invitation indisponible</h2>
+      <p class="muted" id="refused-text"></p>
+      <a class="btn btn-ghost" href="/login">Se connecter</a>
+    </div>
+  </div>
+</main>
+
+<script type="module" src="/assets/join.js"></script>
+</body>
+</html>
