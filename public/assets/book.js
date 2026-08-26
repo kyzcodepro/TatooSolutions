@@ -1,4 +1,4 @@
-import { api, toast, money, hours as formatHours, esc, DETAIL_LABELS, COLOR_LABELS } from './util.js';
+import { api, toast, money, hours as formatHours, esc, DETAIL_LABELS, COLOR_LABELS, setStudioZone } from './util.js';
 
 const slug = decodeURIComponent(location.pathname.split('/').filter(Boolean)[1] ?? '');
 const el = (id) => document.getElementById(id);
@@ -16,6 +16,7 @@ async function init() {
   try {
     const data = await api('GET', `/api/public/artists/${encodeURIComponent(slug)}`);
     artist = data.artist;
+    setStudioZone(artist.timezone);
     currency = artist.currency;
     renderArtist(data.options);
   } catch (err) {

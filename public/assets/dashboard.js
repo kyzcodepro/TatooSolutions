@@ -1,6 +1,6 @@
 import {
   api, toast, money, euros, dateTime, relative, percent, hours as formatHours, esc,
-  statusBadge, toIso, toLocalInput, COLOR_LABELS, DETAIL_LABELS,
+  statusBadge, toIso, toLocalInput, COLOR_LABELS, DETAIL_LABELS, setStudioZone, zoneNote,
 } from './util.js';
 
 const el = (id) => document.getElementById(id);
@@ -19,6 +19,7 @@ async function boot() {
   const me = await api('GET', '/api/me').catch(() => null);
   if (!me?.artist) { location.href = '/login'; return; }
   artist = me.artist;
+  setStudioZone(artist.timezone);
   renderHeader();
   wireCopyLink();
   wireTabs();
@@ -58,6 +59,14 @@ function renderHeader() {
   const url = `${location.origin}/b/${artist.slug}`;
   el('booking-link').textContent = url;
   el('open-link').href = `/b/${artist.slug}`;
+
+  // Said out loud only when the artist is reading from another zone — on tour, or
+  // travelling. Every hour on this screen is the studio's, and silently showing
+  // one clock while the artist reads another is how a session gets missed.
+  const note = zoneNote(artist.city);
+  const banner = el('agenda-zone');
+  banner.textContent = note ? `Toutes les heures sont données en ${note}.` : '';
+  banner.classList.toggle('hidden', !note);
 }
 
 function wireCopyLink() {
@@ -625,6 +634,7 @@ function wireSettings() {
         lead_hours: Number(el('set-lead').value),
       });
       artist = updated;
+      setStudioZone(artist.timezone);
       renderHeader();
       toast('Réglages enregistrés.');
     } catch (err) {

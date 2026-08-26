@@ -22,6 +22,57 @@ export const DEFAULT_WORKING_HOURS = [
 export const DEFAULT_TIMEZONE = 'Europe/Paris';
 const SLOT_STEP_MINUTES = 30;
 
+/**
+ * The one way this product renders an instant to a human.
+ *
+ * A booking happens at the studio, so it is the studio's wall clock that names
+ * it — not the server's (UTC in production), not the reader's browser. Getting
+ * this wrong is not cosmetic: a client who reads 13:00 for a 15:00 session
+ * misses the session, which is the exact failure this product exists to prevent.
+ */
+export function formatDateTime(iso, timeZone = DEFAULT_TIMEZONE, locale = 'fr-FR') {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString(locale, {
+    weekday: 'long', day: 'numeric', month: 'long',
+    hour: '2-digit', minute: '2-digit',
+    timeZone: safeZone(timeZone),
+  });
+}
+
+/** Short form for lists, where the weekday is noise. */
+export function formatDate(iso, timeZone = DEFAULT_TIMEZONE, locale = 'fr-FR') {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString(locale, {
+    day: 'numeric', month: 'short', year: 'numeric', timeZone: safeZone(timeZone),
+  });
+}
+
+/** "UTC+2" — shown next to a time whenever the reader may not be in that zone. */
+export function zoneLabel(timeZone = DEFAULT_TIMEZONE, at = Date.now()) {
+  const zone = safeZone(timeZone);
+  const minutes = Math.round(offsetAt(at, zone) / 60000);
+  const sign = minutes < 0 ? '-' : '+';
+  const abs = Math.abs(minutes);
+  const hh = Math.floor(abs / 60);
+  const mm = abs % 60;
+  return `UTC${sign}${hh}${mm ? `:${String(mm).padStart(2, '0')}` : ''}`;
+}
+
+/** An unknown zone must not throw in the middle of sending a confirmation. */
+export function safeZone(timeZone) {
+  if (!timeZone) return DEFAULT_TIMEZONE;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone }).format(0);
+    return timeZone;
+  } catch {
+    return DEFAULT_TIMEZONE;
+  }
+}
+
 export function parseWorkingHours(raw) {
   let parsed;
   try {

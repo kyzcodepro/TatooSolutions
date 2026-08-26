@@ -8,6 +8,7 @@ import { HttpError, bad, conflict, notFound } from './http.js';
 import { estimate, suggestDeposit, MAX_SESSION_HOURS } from './pricing.js';
 import {
   availableSlots, parseWorkingHours, withinWorkingHours, DEFAULT_TIMEZONE,
+  formatDateTime, zoneLabel,
 } from './availability.js';
 import { startDeposit, paymentsProvider } from './payments.js';
 import {
@@ -173,6 +174,7 @@ export async function quoteView(token) {
     artist: {
       studio_name: artist.studio_name, city: artist.city, slug: artist.slug,
       currency: artist.currency, cancellation_hours: artist.cancellation_hours,
+      timezone: artist.timezone || DEFAULT_TIMEZONE,
     },
     request: {
       status: request.status,
@@ -385,7 +387,7 @@ export async function markNoShow(artist, appointmentId) {
     artistId: artist.id, requestId: request.id, appointmentId: appointment.id,
     kind: 'no_show', recipient: request.client_email,
     subject: 'Séance manquée',
-    body: `Bonjour ${request.client_name},\n\nVous n'êtes pas venu(e) à la séance du ${new Date(appointment.starts_at).toLocaleString('fr-FR')}. L'acompte est conservé, comme prévu dans les conditions. Pour reprendre rendez-vous : {{base_url}}/b/${artist.slug}`,
+    body: `Bonjour ${request.client_name},\n\nVous n'êtes pas venu(e) à la séance du ${formatDateTime(appointment.starts_at, artist.timezone)}. L'acompte est conservé, comme prévu dans les conditions. Pour reprendre rendez-vous : {{base_url}}/b/${artist.slug}`,
   });
   return db.get('SELECT * FROM appointments WHERE id = ?', [appointment.id]);
 }
@@ -412,7 +414,7 @@ export async function rescheduleAppointment(artist, appointmentId, startsAt, dur
     artistId: artist.id, requestId: request.id, appointmentId: updated.id,
     kind: 'rescheduled', recipient: request.client_email,
     subject: 'Votre séance a été déplacée',
-    body: `Bonjour ${request.client_name},\n\nNouvelle date : ${new Date(updated.starts_at).toLocaleString('fr-FR')}. Votre acompte reste acquis à cette séance.`,
+    body: `Bonjour ${request.client_name},\n\nNouvelle date : ${formatDateTime(updated.starts_at, artist.timezone)} (${zoneLabel(artist.timezone)}). Votre acompte reste acquis à cette séance.`,
   });
   return updated;
 }
@@ -430,7 +432,7 @@ export async function cancelAppointment(artist, appointmentId, { refundDeposit =
     artistId: artist.id, requestId: request.id, appointmentId: appointment.id,
     kind: 'cancelled', recipient: request.client_email,
     subject: 'Votre séance a été annulée',
-    body: `Bonjour ${request.client_name},\n\nLa séance du ${new Date(appointment.starts_at).toLocaleString('fr-FR')} est annulée.${reason ? `\nRaison : ${reason}` : ''}\n${refundDeposit ? 'Votre acompte vous est remboursé.' : 'Votre acompte reste acquis au studio.'}`,
+    body: `Bonjour ${request.client_name},\n\nLa séance du ${formatDateTime(appointment.starts_at, artist.timezone)} est annulée.${reason ? `\nRaison : ${reason}` : ''}\n${refundDeposit ? 'Votre acompte vous est remboursé.' : 'Votre acompte reste acquis au studio.'}`,
   });
   return db.get('SELECT * FROM appointments WHERE id = ?', [appointment.id]);
 }

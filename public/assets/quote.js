@@ -1,4 +1,4 @@
-import { api, toast, money, dateTime, esc } from './util.js';
+import { api, toast, money, dateTime, esc, setStudioZone, zoneNote } from './util.js';
 
 const token = decodeURIComponent(location.pathname.split('/').filter(Boolean)[1] ?? '');
 const el = (id) => document.getElementById(id);
@@ -13,6 +13,7 @@ async function load({ silent = false } = {}) {
     el('loading').textContent = err.status === 404 ? 'Ce lien de suivi n\'existe pas ou a expiré.' : err.message;
     return;
   }
+  setStudioZone(state.artist.timezone);
   el('loading').classList.add('hidden');
   el('view').classList.remove('hidden');
   render();
@@ -97,6 +98,7 @@ function render() {
       <div class="card card-pad-lg">
         ${request.artist_note ? `<p class="muted" style="border-left:2px solid var(--accent);padding-left:0.8rem">${esc(request.artist_note)}</p>` : ''}
         <div class="price-line"><span class="muted">Créneau proposé</span><b>${request.proposed_start ? esc(dateTime(request.proposed_start)) : 'à définir'}</b></div>
+        ${request.proposed_start && zoneNote(artist.city) ? `<p class="hint center">Horaire donné en ${esc(zoneNote(artist.city))}.</p>` : ''}
         <div class="price-line"><span class="muted">${multiSession ? 'Première séance' : 'Durée prévue'}</span><b>${esc(sessionHours)} h</b></div>
         ${multiSession ? `<div class="price-line"><span class="muted">Travail total estimé</span><b>${esc(request.estimated_hours)} h — séances suivantes à caler ensemble</b></div>` : ''}
         <div class="price-line"><span class="muted">Prix du tatouage</span><span class="price-total">${money(request.quote_price_cents, currency)}</span></div>
@@ -130,7 +132,7 @@ function render() {
     : `Rendez-vous le ${dateTime(start)} chez ${artist.studio_name}.`;
   panel.innerHTML = `
     <div class="card card-pad-lg">
-      <div class="price-line"><span class="muted">Date</span><b>${esc(dateTime(start))}</b></div>
+      <div class="price-line"><span class="muted">Date</span><b>${esc(dateTime(start))}</b>${zoneNote(artist.city) ? `<span class="muted"> ${esc(zoneNote(artist.city))}</span>` : ''}</div>
       <div class="price-line"><span class="muted">Prix total</span><b>${money(request.quote_price_cents, currency)}</b></div>
       <div class="price-line"><span class="muted">Acompte versé</span><b style="color:var(--ok)">${money(request.deposit_cents, currency)}</b></div>
       <div class="price-line"><span class="muted">Reste à régler sur place</span><b>${money(request.quote_price_cents - request.deposit_cents, currency)}</b></div>

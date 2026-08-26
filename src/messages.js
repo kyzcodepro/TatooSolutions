@@ -5,6 +5,7 @@
 import { getDb, nowIso } from './db.js';
 import { formatMoney } from './pricing.js';
 import { createTransport, isUndeliverable, configuredProvider } from './mailer.js';
+import { formatDateTime, zoneLabel } from './availability.js';
 
 const HOUR = 3600000;
 const DAY = 24 * HOUR;
@@ -65,11 +66,11 @@ export async function queueArtistDepositPaid(artist, request, appointment) {
     kind: 'artist_deposit_paid',
     recipient: artist.email,
     replyTo: request.client_email,
-    subject: `Acompte reçu — ${request.client_name}, ${dateFr(appointment.starts_at)}`,
+    subject: `Acompte reçu — ${request.client_name}, ${dateFr(appointment.starts_at, artist)}`,
     body: [
       `${request.client_name} a versé l'acompte : la date est bloquée.`,
       '',
-      `Séance : ${dateFr(appointment.starts_at)}`,
+      `Séance : ${dateFr(appointment.starts_at, artist)}`,
       `Acompte encaissé : ${formatMoney(appointment.deposit_cents, artist.currency)}`,
       `Reste à percevoir le jour J : ${formatMoney(appointment.price_cents - appointment.deposit_cents, artist.currency)}`,
       '',
@@ -89,7 +90,7 @@ export async function queueQuoteExpired(artist, request) {
       `Bonjour ${request.client_name},`,
       '',
       `Le devis de ${formatMoney(request.quote_price_cents, artist.currency)} n'a pas été confirmé dans le délai, `
-      + `et le créneau${request.proposed_start ? ` du ${dateFr(request.proposed_start)}` : ''} est de nouveau ouvert.`,
+      + `et le créneau${request.proposed_start ? ` du ${dateFr(request.proposed_start, artist)}` : ''} est de nouveau ouvert.`,
       '',
       `Votre projet vous intéresse toujours ? Renvoyez une demande, c'est deux minutes : {{base_url}}/b/${artist.slug}`,
     ].join('\n'),
@@ -104,16 +105,19 @@ export async function queueQuoteExpired(artist, request) {
     subject: `Devis expiré sans réponse — ${request.client_name}`,
     body: [
       `Le devis de ${formatMoney(request.quote_price_cents, artist.currency)} envoyé à ${request.client_name} a expiré sans acompte.`,
-      request.proposed_start ? `Le créneau du ${dateFr(request.proposed_start)} est libéré.` : '',
+      request.proposed_start ? `Le créneau du ${dateFr(request.proposed_start, artist)} est libéré.` : '',
       '',
       `Relancer ou refuser : {{base_url}}/app`,
     ].filter(Boolean).join('\n'),
   });
 }
 
-const dateFr = (iso) => new Date(iso).toLocaleString('fr-FR', {
-  weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris',
-});
+// Every date a client reads is the studio's wall clock, never the server's.
+const dateFr = (iso, artist) => formatDateTime(iso, artist?.timezone);
+
+// Spelled out wherever the client has to be somewhere at that hour: they may well
+// be reading this from another country.
+const localZone = (artist) => `heure de ${artist?.city || 'l\'atelier'}, ${zoneLabel(artist?.timezone)}`;
 
 export async function queueRequestReceived(artist, request, estimateResult) {
   await queueMessage({
@@ -146,12 +150,12 @@ export async function queueQuoteSent(artist, request) {
       `Bonjour ${request.client_name},`,
       '',
       `Voici votre devis : ${formatMoney(request.quote_price_cents, artist.currency)}`,
-      request.proposed_start ? `Créneau proposé : ${dateFr(request.proposed_start)}` : 'Créneau à définir ensemble.',
+      request.proposed_start ? `Créneau proposé : ${dateFr(request.proposed_start, artist)} (${localZone(artist)})` : 'Créneau à définir ensemble.',
       `Acompte pour bloquer la date : ${formatMoney(request.deposit_cents, artist.currency)}`,
       request.artist_note ? `\nNote de l'artiste : ${request.artist_note}` : '',
       '',
       `Confirmer et verser l'acompte : {{base_url}}/q/${request.public_token}`,
-      request.quote_expires_at ? `Ce devis expire le ${dateFr(request.quote_expires_at)}.` : '',
+      request.quote_expires_at ? `Ce devis expire le ${dateFr(request.quote_expires_at, artist)}.` : '',
     ].filter(Boolean).join('\n'),
   });
 }
@@ -163,12 +167,12 @@ export async function queueBookingConfirmed(artist, request, appointment) {
     appointmentId: appointment.id,
     kind: 'booking_confirmed',
     recipient: request.client_email,
-    subject: `C'est confirmé : ${dateFr(appointment.starts_at)}`,
+    subject: `C'est confirmé : ${dateFr(appointment.starts_at, artist)}`,
     body: [
       `Bonjour ${request.client_name},`,
       '',
       `Votre acompte de ${formatMoney(appointment.deposit_cents, artist.currency)} est enregistré, votre séance est bloquée.`,
-      `Rendez-vous : ${dateFr(appointment.starts_at)} chez ${artist.studio_name}${artist.city ? `, ${artist.city}` : ''}.`,
+      `Rendez-vous : ${dateFr(appointment.starts_at, artist)} (${localZone(artist)}) chez ${artist.studio_name}${artist.city ? `, ${artist.city}` : ''}.`,
       `Reste à régler sur place : ${formatMoney(appointment.price_cents - appointment.deposit_cents, artist.currency)}`,
       '',
       'Avant la séance : mangez, dormez, pas d\'alcool 24 h avant, apportez une pièce d\'identité.',
@@ -183,12 +187,12 @@ export async function scheduleAppointmentReminders(artist, request, appointment)
   const start = new Date(appointment.starts_at).getTime();
   const cutoff = start - artist.cancellation_hours * HOUR;
   const plan = [
-    { kind: 'reminder_7d', at: start - 7 * DAY, subject: `Votre séance approche — ${dateFr(appointment.starts_at)}`,
-      body: `Rappel : séance chez ${artist.studio_name} le ${dateFr(appointment.starts_at)}. Besoin de décaler ? C'est encore gratuit, répondez à ce message.` },
+    { kind: 'reminder_7d', at: start - 7 * DAY, subject: `Votre séance approche — ${dateFr(appointment.starts_at, artist)}`,
+      body: `Rappel : séance chez ${artist.studio_name} le ${dateFr(appointment.starts_at, artist)}. Besoin de décaler ? C'est encore gratuit, répondez à ce message.` },
     { kind: 'reminder_cutoff', at: cutoff - 2 * HOUR, subject: `Dernier moment pour décaler sans frais`,
       body: `Passé ${artist.cancellation_hours} h avant la séance, l'acompte de ${formatMoney(appointment.deposit_cents, artist.currency)} est conservé. Si la date ne tient plus, dites-le maintenant.` },
-    { kind: 'reminder_24h', at: start - DAY, subject: `Demain : ${dateFr(appointment.starts_at)}`,
-      body: `À demain chez ${artist.studio_name} ! ${dateFr(appointment.starts_at)}. Mangez avant de venir et apportez une pièce d'identité.` },
+    { kind: 'reminder_24h', at: start - DAY, subject: `Demain : ${dateFr(appointment.starts_at, artist)}`,
+      body: `À demain chez ${artist.studio_name} ! ${dateFr(appointment.starts_at, artist)}. Mangez avant de venir et apportez une pièce d'identité.` },
   ];
   for (const item of plan) {
     if (item.at <= Date.now()) continue; // in the past: pointless noise
